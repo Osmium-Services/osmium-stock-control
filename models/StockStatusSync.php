@@ -22,6 +22,9 @@ class StockStatusSync
         $statusesNotConfigured = $this->outOfStockStatusId === null || $this->inStockStatusId === null;
         if ($statusesNotConfigured) return;
 
+        $chosenGone = !$this->levels->statusExists($this->outOfStockStatusId) || !$this->levels->statusExists($this->inStockStatusId);
+        if ($chosenGone) return; // A deleted status would leave products on an id that means nothing
+
         $current = $this->levels->productStatus($productId);
         if ($current === null) return;
 

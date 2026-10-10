@@ -147,6 +147,29 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertSame($this->inStock, $this->statusOf($product));
     }
 
+    public function test_a_chosen_status_that_no_longer_exists_leaves_the_product_status_alone(): void
+    {
+        $product = $this->product();
+        $missingStatus = 250;
+        $adjustment = new StockAdjustment(db: $this->db, calculator: new StockCalculator(), outOfStockStatusId: $missingStatus, inStockStatusId: $this->inStock);
+
+        $adjustment->set(productId: $product, quantity: 0);
+
+        $this->assertSame($this->inStock, $this->statusOf($product));
+        $this->assertSame(0, $this->levels->get($product));
+    }
+
+    public function test_an_in_stock_status_that_no_longer_exists_also_stops_the_status_changing(): void
+    {
+        $product = $this->product();
+        $missingStatus = 250;
+        $adjustment = new StockAdjustment(db: $this->db, calculator: new StockCalculator(), outOfStockStatusId: $this->outOfStock, inStockStatusId: $missingStatus);
+
+        $adjustment->set(productId: $product, quantity: 0);
+
+        $this->assertSame($this->inStock, $this->statusOf($product));
+    }
+
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void
     {
         $product = $this->product();

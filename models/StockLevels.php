@@ -81,6 +81,17 @@ class StockLevels extends Model
         return $this->database->prepare(sql: $this->loadSqlFile('product-status-list.sql'))->resultset();
     }
 
+    /** Whether core still has a product status with this id */
+    public function statusExists(int $statusId): bool
+    {
+        $row = $this->database->prepare(
+            sql: $this->loadSqlFile('product-status-exists.sql'),
+            bindings: [':status_id' => $statusId],
+        )->single();
+
+        return $row !== false;
+    }
+
     public function setProductStatus(int $productId, int $statusId): void
     {
         $this->database->prepare(
