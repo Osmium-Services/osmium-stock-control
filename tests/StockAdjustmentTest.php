@@ -366,6 +366,94 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertSame([12, '2026-11-12'], $this->onOrderOf($product));
     }
 
+    // ── receiving a delivery ────────────────────────────────────────────────
+
+    private function shelfAndOnOrder(int $productId): array
+    {
+        return [$this->levels->get($productId), $this->onOrderOf($productId)[0]];
+    }
+
+    public function test_receiving_adds_what_was_on_order_to_the_shelf_and_clears_it(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: '2026-11-12');
+
+        $units = $this->adjustment()->receiveOnOrder($product);
+
+        $this->assertSame(12, $units);
+        $this->assertSame([15, null], $this->shelfAndOnOrder($product));
+        $this->assertSame([null, null], $this->onOrderOf($product));
+    }
+
+    public function test_receiving_is_recorded_as_a_delivery_in_the_history(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: null);
+
+        $this->adjustment()->receiveOnOrder($product);
+
+        $movements = $this->movementsFor($product);
+        $this->assertSame(['change_qty' => 12, 'reason' => 'manual', 'note' => 'Delivery received'], \end($movements));
+    }
+
+    public function test_receiving_with_nothing_on_order_is_refused_and_changes_nothing(): void
+    {
+        $product = $this->trackedProduct();
+
+        try {
+            $this->adjustment()->receiveOnOrder($product);
+            $this->fail('Nothing on order should be refused');
+        } catch (\RuntimeException) {
+            $this->assertSame(3, $this->levels->get($product));
+        }
+    }
+
+    public function test_receiving_twice_adds_the_delivery_only_once(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: null);
+        $this->adjustment()->receiveOnOrder($product);
+
+        try {
+            $this->adjustment()->receiveOnOrder($product);
+            $this->fail('The second receive should be refused');
+        } catch (\RuntimeException) {
+            $this->assertSame(15, $this->levels->get($product));
+        }
+    }
+
+    public function test_receiving_for_an_untracked_product_is_refused(): void
+    {
+        $product = $this->product();
+
+        $this->expectException(\RuntimeException::class);
+
+        $this->adjustment()->receiveOnOrder($product);
+    }
+
+    public function test_receiving_moves_an_out_of_stock_product_back_to_in_stock(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 0);
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 5, expectedAt: null);
+        $this->assertSame($this->outOfStock, $this->statusOf($product));
+
+        $this->adjustment()->receiveOnOrder($product);
+
+        $this->assertSame($this->inStock, $this->statusOf($product));
+    }
+
+    public function test_receiving_keeps_the_reorder_level(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setReorderLevel(productId: $product, level: 4);
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: null);
+
+        $this->adjustment()->receiveOnOrder($product);
+
+        $this->assertSame(4, $this->reorderLevelOf($product));
+    }
+
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void
     {
         $product = $this->product();

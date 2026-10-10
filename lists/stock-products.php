@@ -41,6 +41,13 @@ return [
         'actions' => [
             ['label' => 'Set stock', 'icon' => 'bx-edit-alt', 'url' => '{edit_url}'],
             [
+                'label' => 'Receive stock',
+                'icon' => 'bx-package',
+                'action' => 'receive',
+                'confirm' => 'A delivery has arrived: add the units on order to the shelf and clear the on-order figure? For a partial delivery, use Set stock instead.',
+                'visible' => fn(array $row): bool => (bool) $row['has_on_order'],
+            ],
+            [
                 'label' => 'Stop tracking',
                 'icon' => 'bx-x-circle',
                 'action' => 'stop_tracking',

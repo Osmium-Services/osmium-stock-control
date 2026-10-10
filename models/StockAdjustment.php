@@ -89,6 +89,34 @@ class StockAdjustment
         $this->levels->setOnOrder(productId: $productId, quantity: $quantity, expectedAt: $expectedAt);
     }
 
+    /**
+     * A delivery has arrived: put everything that was on order on the shelf and clear the on-order
+     * figure. For a partial delivery, set the stock figure and the on-order units by hand instead.
+     *
+     * @return int Units put on the shelf
+     * @throws \RuntimeException When the product is not tracked or nothing is on order
+     */
+    public function receiveOnOrder(int $productId): int
+    {
+        $units = 0;
+
+        $this->inTransaction(function () use ($productId, &$units): void {
+            $before = $this->levels->getForUpdate($productId);
+            $onOrder = $this->levels->onOrderQuantity($productId);
+
+            $nothingToReceive = $before === null || $onOrder === null;
+            if ($nothingToReceive) throw new \RuntimeException('Nothing is on order for this product.');
+
+            $units = $onOrder;
+            $this->levels->set($productId, $before + $units);
+            $this->levels->setOnOrder(productId: $productId, quantity: null, expectedAt: null);
+            $this->record(productId: $productId, change: $units, note: 'Delivery received');
+            $this->statusSync->sync($productId, $before + $units);
+        });
+
+        return $units;
+    }
+
     public function stopTracking(int $productId, ?string $note = null): void
     {
         $this->inTransaction(function () use ($productId, $note): void {

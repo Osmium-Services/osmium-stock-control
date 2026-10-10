@@ -96,6 +96,7 @@ class StockController extends AdminController
             $result = match ($action) {
                 'save' => $this->save(productId: $id, input: $input),
                 'stop_tracking' => $this->stopTracking($id),
+                'receive' => $this->receive($id),
                 default => throw new \InvalidArgumentException('Unknown action'),
             };
 
@@ -186,6 +187,14 @@ class StockController extends AdminController
         return [$noUnits ? null : (int) $quantity, $date === '' ? null : $date];
     }
 
+    private function receive(int $productId): array
+    {
+        $units = $this->adjustment()->receiveOnOrder($productId);
+        $this->logChange(action: 'Received ' . $units . ' into stock for', productId: $productId);
+
+        return ['success' => true, 'units' => $units];
+    }
+
     private function stopTracking(int $productId): array
     {
         $this->adjustment()->stopTracking($productId);
@@ -238,6 +247,7 @@ class StockController extends AdminController
             'stock_sort' => $isTracked ? (int) $product['quantity'] : -1,
             'is_tracked' => $isTracked,
             'reorder_label' => $reorderLevel === null ? '' : (string) $reorderLevel,
+            'has_on_order' => $onOrder['state'] !== 'none',
             'on_order_html' => $this->onOrderHtml($onOrder),
             'on_order_sort' => (string) ($product['expected_at'] ?? ''),
             'on_order_value' => $onOrderQuantity === null ? '' : (string) $onOrderQuantity,

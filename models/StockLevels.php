@@ -39,6 +39,19 @@ class StockLevels extends Model
         return $hasLevel ? (int) $row['reorder_level'] : null;
     }
 
+    /** Units on order for a tracked product, or null when none are (or it is not tracked) */
+    public function onOrderQuantity(int $productId): ?int
+    {
+        $row = $this->database->prepare(
+            sql: $this->loadSqlFile('stock-level-get-on-order.sql'),
+            bindings: [':product_id' => $productId],
+        )->single();
+
+        $hasUnits = $row !== false && $row['on_order_qty'] !== null;
+
+        return $hasUnits ? (int) $row['on_order_qty'] : null;
+    }
+
     /** Like get(), but locks the row until the transaction ends */
     public function getForUpdate(int $productId): ?int
     {
