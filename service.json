@@ -19,5 +19,9 @@
         "models"
     ],
 
+    "hooks": {
+        "order.paid": ["Osmium\\Services\\StockControl\\Models\\StockHooks::orderPaid"]
+    },
+
     "migrations": "migrations/"
 }
