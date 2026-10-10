@@ -34,6 +34,20 @@ class StockCalculator
     }
 
     /**
+     * Where a product stands for ordering more: 'untracked' (no figure), 'reorder' (at or
+     * below its reorder level) or 'ok'. A tracked product with no reorder level is always ok.
+     */
+    public function stockState(?int $quantity, ?int $reorderLevel): string
+    {
+        $untracked = $quantity === null;
+        if ($untracked) return 'untracked';
+
+        $needsReorder = $reorderLevel !== null && $quantity <= $reorderLevel;
+
+        return $needsReorder ? 'reorder' : 'ok';
+    }
+
+    /**
      * The products that want more than the shelf holds, with how many are there.
      * A product with no figure is not tracked, so it is never short.
      *

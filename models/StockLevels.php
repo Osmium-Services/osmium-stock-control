@@ -41,6 +41,15 @@ class StockLevels extends Model
         )->execute();
     }
 
+    /** Change when a tracked product needs reordering (null clears it). Does nothing for an untracked product. */
+    public function setReorderLevel(int $productId, ?int $level): void
+    {
+        $this->database->prepare(
+            sql: $this->loadSqlFile('stock-level-set-reorder.sql'),
+            bindings: [':product_id' => $productId, ':reorder_level' => $level],
+        )->execute();
+    }
+
     /** Stop tracking a product: stock control leaves it alone again */
     public function stopTracking(int $productId): void
     {

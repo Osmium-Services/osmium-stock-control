@@ -55,6 +55,35 @@ final class StockCalculatorTest extends TestCase
         $this->assertSame([10 => 0], $this->calc->shortages([10 => 1], [10 => -3]));
     }
 
+    // ── when to reorder ─────────────────────────────────────────────────────
+
+    public function test_a_product_at_or_below_its_reorder_level_is_flagged(): void
+    {
+        $this->assertSame('reorder', $this->calc->stockState(quantity: 5, reorderLevel: 5));
+        $this->assertSame('reorder', $this->calc->stockState(quantity: 0, reorderLevel: 5));
+    }
+
+    public function test_a_product_above_its_reorder_level_is_ok(): void
+    {
+        $this->assertSame('ok', $this->calc->stockState(quantity: 6, reorderLevel: 5));
+    }
+
+    public function test_a_tracked_product_with_no_reorder_level_is_ok_however_low_it_is(): void
+    {
+        $this->assertSame('ok', $this->calc->stockState(quantity: 0, reorderLevel: null));
+    }
+
+    public function test_an_untracked_product_has_its_own_state(): void
+    {
+        $this->assertSame('untracked', $this->calc->stockState(quantity: null, reorderLevel: 5));
+    }
+
+    public function test_a_reorder_level_of_zero_flags_only_when_it_has_run_out(): void
+    {
+        $this->assertSame('reorder', $this->calc->stockState(quantity: 0, reorderLevel: 0));
+        $this->assertSame('ok', $this->calc->stockState(quantity: 1, reorderLevel: 0));
+    }
+
     // ── units an order takes ────────────────────────────────────────────────
 
     public function test_a_plain_line_takes_its_quantity_of_its_own_product(): void

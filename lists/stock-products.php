@@ -13,6 +13,13 @@ return [
         'endpoint' => 'stock/action/',
         'emptyText' => 'No products yet.',
         'order' => null,
+        'filters' => [
+            [
+                'key' => 'stock_state',
+                'label' => 'Ordering',
+                'options' => [['', 'All'], ['reorder', 'Needs reorder'], ['ok', 'OK'], ['untracked', 'Not tracked']],
+            ],
+        ],
         'columns' => [
             [
                 'key' => 'name',
@@ -23,6 +30,8 @@ return [
                 'sub' => ['key' => 'reference', 'style' => 'plain'],
             ],
             ['key' => 'stock_label', 'label' => 'In stock', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'stock_sort'],
+            ['key' => 'reorder_label', 'label' => 'Reorder at', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'reorder_label'],
+            ['key' => 'state_label', 'label' => 'Ordering', 'type' => 'badge', 'text' => true, 'classKey' => 'state_class', 'nowrap' => true],
             ['key' => 'status_label', 'label' => 'Status', 'type' => 'text', 'nowrap' => true],
         ],
         'actions' => [

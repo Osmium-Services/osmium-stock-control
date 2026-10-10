@@ -170,6 +170,76 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertSame($this->inStock, $this->statusOf($product));
     }
 
+    // ── reorder level ───────────────────────────────────────────────────────
+
+    private function reorderLevelOf(int $productId): ?int
+    {
+        foreach ($this->levels->listProducts() as $row) {
+            $isWanted = (int) $row['id'] === $productId;
+            if ($isWanted) return $row['reorder_level'] === null ? null : (int) $row['reorder_level'];
+        }
+
+        return null;
+    }
+
+    public function test_a_reorder_level_can_be_set_for_a_tracked_product(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 10);
+
+        $this->adjustment()->setReorderLevel(productId: $product, level: 4);
+
+        $this->assertSame(4, $this->reorderLevelOf($product));
+    }
+
+    public function test_a_reorder_level_can_be_cleared(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 10);
+        $this->adjustment()->setReorderLevel(productId: $product, level: 4);
+
+        $this->adjustment()->setReorderLevel(productId: $product, level: null);
+
+        $this->assertNull($this->reorderLevelOf($product));
+    }
+
+    public function test_a_reorder_level_is_refused_for_an_untracked_product(): void
+    {
+        $product = $this->product();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->adjustment()->setReorderLevel(productId: $product, level: 4);
+    }
+
+    public function test_a_negative_reorder_level_is_refused(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 10);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->adjustment()->setReorderLevel(productId: $product, level: -1);
+    }
+
+    public function test_changing_the_quantity_keeps_the_reorder_level(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 10);
+        $this->adjustment()->setReorderLevel(productId: $product, level: 4);
+
+        $this->adjustment()->set(productId: $product, quantity: 2);
+
+        $this->assertSame(4, $this->reorderLevelOf($product));
+    }
+
+    public function test_the_product_list_has_no_reorder_level_for_an_untracked_product(): void
+    {
+        $product = $this->product();
+
+        $this->assertNull($this->reorderLevelOf($product));
+    }
+
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void
     {
         $product = $this->product();

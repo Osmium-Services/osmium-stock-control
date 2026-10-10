@@ -26,6 +26,12 @@
                     value="<?= $product['is_tracked'] ? (int) $product['quantity'] : '' ?>">
             </div>
             <div class="mb-3">
+                <label for="stockReorder" class="form-label">Reorder at (optional)</label>
+                <input type="number" class="form-control" id="stockReorder" min="0" step="1"
+                    value="<?= \htmlspecialchars((string) $product['reorder_label']) ?>">
+                <div class="form-text">The product shows up for reordering when stock is at or below this. Leave blank for no alert.</div>
+            </div>
+            <div class="mb-3">
                 <label for="stockNote" class="form-label">Note (optional)</label>
                 <input type="text" class="form-control" id="stockNote" maxlength="255" placeholder="e.g. Delivery from supplier">
             </div>

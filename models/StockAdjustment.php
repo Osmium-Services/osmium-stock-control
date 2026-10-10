@@ -49,6 +49,22 @@ class StockAdjustment
         });
     }
 
+    /**
+     * Set the figure at or below which the product shows up for reordering (null clears it).
+     *
+     * @throws \InvalidArgumentException For a negative level, or a product that is not tracked yet
+     */
+    public function setReorderLevel(int $productId, ?int $level): void
+    {
+        $isNegative = $level !== null && $level < 0;
+        if ($isNegative) throw new \InvalidArgumentException('The reorder level cannot be negative');
+
+        $untracked = $this->levels->get($productId) === null;
+        if ($untracked) throw new \InvalidArgumentException('Set a stock figure first: only tracked products have a reorder level');
+
+        $this->levels->setReorderLevel(productId: $productId, level: $level);
+    }
+
     public function stopTracking(int $productId, ?string $note = null): void
     {
         $this->inTransaction(function () use ($productId, $note): void {

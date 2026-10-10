@@ -29,6 +29,7 @@
                     action: 'save',
                     id: Number(document.getElementById('stockProductId').value) || 0,
                     quantity: document.getElementById('stockQuantity').value,
+                    reorder_level: document.getElementById('stockReorder').value,
                     note: document.getElementById('stockNote').value
                 })
             });

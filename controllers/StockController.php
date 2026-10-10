@@ -131,10 +131,26 @@ class StockController extends AdminController
         $noteTooLong = \mb_strlen($note) > 255;
         if ($noteTooLong) throw new \InvalidArgumentException('A note can be up to 255 characters');
 
+        $reorderLevel = $this->readReorderLevel($input['reorder_level'] ?? '');
+
         $this->adjustment()->set(productId: $productId, quantity: (int) $rawQuantity, note: $note === '' ? null : $note);
+        $this->adjustment()->setReorderLevel(productId: $productId, level: $reorderLevel);
         $this->logChange(action: 'Set stock to ' . (int) $rawQuantity . ' for', productId: $productId);
 
         return ['success' => true];
+    }
+
+    /** A whole number, zero or more, or null when the box was left blank */
+    private function readReorderLevel(mixed $raw): ?int
+    {
+        $raw = \trim((string) $raw);
+        $isBlank = $raw === '';
+        if ($isBlank) return null;
+
+        $isWholeNumber = \preg_match('/^\d{1,9}$/', $raw) === 1;
+        if (!$isWholeNumber) throw new \InvalidArgumentException('Enter the reorder level as a whole number, or leave it blank');
+
+        return (int) $raw;
     }
 
     private function stopTracking(int $productId): array
@@ -175,6 +191,9 @@ class StockController extends AdminController
     private function formatProduct(array $product): array
     {
         $isTracked = $product['quantity'] !== null;
+        $quantity = $isTracked ? (int) $product['quantity'] : null;
+        $reorderLevel = $product['reorder_level'] === null ? null : (int) $product['reorder_level'];
+        $state = (new StockCalculator())->stockState(quantity: $quantity, reorderLevel: $reorderLevel);
         $name = \trim(($product['brand_name'] ?? '') . ' ' . $product['model_name']);
 
         return $product + [
@@ -183,6 +202,10 @@ class StockController extends AdminController
             'stock_label' => $isTracked ? (string) (int) $product['quantity'] : 'Not tracked',
             'stock_sort' => $isTracked ? (int) $product['quantity'] : -1,
             'is_tracked' => $isTracked,
+            'reorder_label' => $reorderLevel === null ? '' : (string) $reorderLevel,
+            'stock_state' => $state,
+            'state_label' => ['reorder' => 'Reorder', 'ok' => 'OK', 'untracked' => ''][$state],
+            'state_class' => $state === 'reorder' ? 'bg-label-danger' : 'bg-label-success',
         ];
     }
 
