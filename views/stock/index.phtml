@@ -1,0 +1,22 @@
+<?php
+
+use Osmium\Modules\Admin\Core\ListView;
+
+require_once 'app/modules/admin/core/ListView.php';
+
+$listContext = [
+    'adminUrl' => $adminUrl,
+    'isAdmin' => $admin['isAdmin'],
+    'editors' => [],
+    'avatarUrl' => $admin['avatarUrl'] ?? '',
+];
+?>
+<div class="d-flex justify-content-between align-items-center py-3 mb-4">
+    <h4 class="mb-0">
+        <span class="text-muted fw-light">Shop /</span> Stock
+    </h4>
+</div>
+
+<?= ListView::render($admin['lists']['products'], $admin['stockProducts'], $listContext) ?>
+
+<script src="/assets/admin/js/list-view.js<?= $adminAssetVersion('/assets/admin/js/list-view.js') ?>"></script>

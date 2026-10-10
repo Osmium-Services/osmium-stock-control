@@ -8,22 +8,59 @@
         "name": "Gavin Cox"
     },
     "license": "proprietary",
-
     "requires": {
         "osmium": ">=1.0.0",
         "php": ">=8.1",
         "services": []
     },
-
     "autoload": [
         "models"
     ],
-
     "hooks": {
-        "basket.line.check": ["Osmium\\Services\\StockControl\\Models\\StockHooks::basketLineCheck"],
-        "order.check": ["Osmium\\Services\\StockControl\\Models\\StockHooks::orderCheck"],
-        "order.paid": ["Osmium\\Services\\StockControl\\Models\\StockHooks::orderPaid"]
+        "basket.line.check": [
+            "Osmium\\Services\\StockControl\\Models\\StockHooks::basketLineCheck"
+        ],
+        "order.check": [
+            "Osmium\\Services\\StockControl\\Models\\StockHooks::orderCheck"
+        ],
+        "order.paid": [
+            "Osmium\\Services\\StockControl\\Models\\StockHooks::orderPaid"
+        ]
     },
-
-    "migrations": "migrations/"
+    "migrations": "migrations/",
+    "admin": {
+        "menu": {
+            "section": "Shop",
+            "items": [
+                {
+                    "id": "stock",
+                    "label": "Stock",
+                    "icon": "bx bx-package",
+                    "placement": "top",
+                    "route": "admin/stock",
+                    "activePattern": "admin/stock*",
+                    "role": null
+                }
+            ]
+        },
+        "routes": {
+            "admin/stock": {
+                "controller": "controllers/StockController.php",
+                "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
+                "method": "index",
+                "title": "Stock"
+            },
+            "admin/stock/edit": {
+                "controller": "controllers/StockController.php",
+                "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
+                "method": "edit",
+                "title": "Set Stock"
+            },
+            "admin/stock/action": {
+                "controller": "controllers/StockController.php",
+                "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
+                "method": "action"
+            }
+        }
+    }
 }

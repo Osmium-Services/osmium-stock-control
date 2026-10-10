@@ -18,6 +18,7 @@ use Tests\Integration\DatabaseTestCase;
 require_once __DIR__ . '/../models/StockCalculator.php';
 require_once __DIR__ . '/../models/StockLevels.php';
 require_once __DIR__ . '/../models/StockMovements.php';
+require_once __DIR__ . '/../models/StockStatusSync.php';
 require_once __DIR__ . '/../models/StockDeduction.php';
 require_once __DIR__ . '/../models/StockControlConfig.php';
 require_once __DIR__ . '/../models/StockHooks.php';

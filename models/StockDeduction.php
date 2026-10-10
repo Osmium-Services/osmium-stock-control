@@ -14,6 +14,7 @@ class StockDeduction
 {
     private StockLevels $levels;
     private StockMovements $movements;
+    private StockStatusSync $statusSync;
 
     public function __construct(
         private OsmiumPDO $db,
@@ -23,6 +24,7 @@ class StockDeduction
     ) {
         $this->levels = new StockLevels($db);
         $this->movements = new StockMovements($db);
+        $this->statusSync = new StockStatusSync($this->levels, $calculator, $outOfStockStatusId, $inStockStatusId);
     }
 
     /**
@@ -75,20 +77,8 @@ class StockDeduction
             shortQty: $outcome['short'],
             reason: 'sale',
         );
-        $this->flipStatus($productId, $outcome['remaining']);
+        $this->statusSync->sync($productId, $outcome['remaining']);
 
         return ['order_item_id' => $orderItemId, 'product_id' => $productId] + $outcome;
-    }
-
-    private function flipStatus(int $productId, int $quantity): void
-    {
-        $statusesNotConfigured = $this->outOfStockStatusId === null || $this->inStockStatusId === null;
-        if ($statusesNotConfigured) return;
-
-        $current = $this->levels->productStatus($productId);
-        if ($current === null) return;
-
-        $newStatus = $this->calculator->statusAfter($quantity, $current, $this->outOfStockStatusId, $this->inStockStatusId);
-        if ($newStatus !== null) $this->levels->setProductStatus($productId, $newStatus);
     }
 }

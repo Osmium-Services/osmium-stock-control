@@ -1,0 +1,40 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Products and their stock, rendered by Osmium\Modules\Admin\Core\ListView. Rows are shaped by StockController::formatProduct().
+ */
+return [
+    'products' => [
+        'id' => 'stock-products',
+        'title' => 'Stock',
+        'noun' => ['product', 'products'],
+        'endpoint' => 'stock/action/',
+        'emptyText' => 'No products yet.',
+        'order' => null,
+        'columns' => [
+            [
+                'key' => 'name',
+                'label' => 'Product',
+                'type' => 'text',
+                'strong' => true,
+                'fill' => true,
+                'sub' => ['key' => 'reference', 'style' => 'plain'],
+            ],
+            ['key' => 'stock_label', 'label' => 'In stock', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'stock_sort'],
+            ['key' => 'status_label', 'label' => 'Status', 'type' => 'text', 'nowrap' => true],
+        ],
+        'actions' => [
+            ['label' => 'Set stock', 'icon' => 'bx-edit-alt', 'url' => '{edit_url}'],
+            [
+                'label' => 'Stop tracking',
+                'icon' => 'bx-x-circle',
+                'action' => 'stop_tracking',
+                'confirm' => 'Stop tracking this product? Its figure is removed and stock control leaves it alone.',
+                'danger' => true,
+                'visible' => fn(array $row): bool => (bool) $row['is_tracked'],
+            ],
+        ],
+    ],
+];

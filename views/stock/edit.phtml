@@ -1,0 +1,43 @@
+<?php $product = $admin['stockProduct']; ?>
+<div class="d-flex justify-content-between align-items-center py-3 mb-4">
+    <h4 class="mb-0">
+        <span class="text-muted fw-light">Shop / Stock /</span> Set stock
+    </h4>
+    <a href="<?= $adminUrl('stock/') ?>" class="btn btn-label-secondary">
+        <i class="bx bx-arrow-back me-1"></i> All stock
+    </a>
+</div>
+
+<div id="stockResult" class="alert d-none"></div>
+
+<form id="stockForm" autocomplete="off">
+    <input type="hidden" id="stockProductId" value="<?= (int) $product['id'] ?>">
+
+    <div class="card mb-4" style="max-width: 32rem;">
+        <div class="card-body">
+            <h6 class="mb-1"><?= \htmlspecialchars($product['name']) ?></h6>
+            <p class="text-muted small mb-3">
+                Status: <?= \htmlspecialchars((string) $product['status_label']) ?>.
+                <?= $product['is_tracked'] ? 'Counting stock.' : 'Not tracked yet: saving a figure starts tracking it.' ?>
+            </p>
+            <div class="mb-3">
+                <label for="stockQuantity" class="form-label">Units on the shelf</label>
+                <input type="number" class="form-control" id="stockQuantity" min="0" step="1" required
+                    value="<?= $product['is_tracked'] ? (int) $product['quantity'] : '' ?>">
+            </div>
+            <div class="mb-3">
+                <label for="stockNote" class="form-label">Note (optional)</label>
+                <input type="text" class="form-control" id="stockNote" maxlength="255" placeholder="e.g. Delivery from supplier">
+            </div>
+            <button type="submit" class="btn btn-primary w-100" id="stockSaveButton">Save</button>
+        </div>
+    </div>
+</form>
+
+<script nonce="<?= $cspNonce ?? '' ?>">
+    window.StockConfig = {
+        actionUrl: <?= \json_encode($adminUrl('stock/action/')) ?>,
+        listUrl: <?= \json_encode($adminUrl('stock/')) ?>
+    };
+</script>
+<script src="/assets/services/osmium-stock-control/stock-edit.js<?= $adminAssetVersion('/assets/services/osmium-stock-control/stock-edit.js') ?>"></script>

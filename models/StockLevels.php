@@ -41,6 +41,25 @@ class StockLevels extends Model
         )->execute();
     }
 
+    /** Stop tracking a product: stock control leaves it alone again */
+    public function stopTracking(int $productId): void
+    {
+        $this->database->prepare(
+            sql: $this->loadSqlFile('stock-level-delete.sql'),
+            bindings: [':product_id' => $productId],
+        )->execute();
+    }
+
+    /**
+     * Every live product with its figure (quantity is null when it is not tracked), by brand and name
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listProducts(): array
+    {
+        return $this->database->prepare(sql: $this->loadSqlFile('stock-level-list-products.sql'))->resultset();
+    }
+
     /** The product's current status id (core's products.status_id), or null if there is no such product */
     public function productStatus(int $productId): ?int
     {
