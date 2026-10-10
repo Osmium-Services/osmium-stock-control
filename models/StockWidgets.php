@@ -20,4 +20,16 @@ class StockWidgets
 
         return StockDashboardWidget::build(rows: $rows, calculator: new StockCalculator());
     }
+
+    /**
+     * dashboard.widgets: the "Deliveries overdue" card, or null when no delivery is late.
+     *
+     * @param array{osmium: object, role: string} $payload
+     */
+    public static function overdue(array $payload): ?array
+    {
+        $rows = (new StockLevels($payload['osmium']->dataSource))->productsOnOrder();
+
+        return StockDashboardWidget::overdue(rows: $rows, today: \date('Y-m-d'));
+    }
 }

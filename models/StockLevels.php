@@ -127,6 +127,16 @@ class StockLevels extends Model
         return $this->database->prepare(sql: $this->loadSqlFile('stock-level-list-reorder.sql'))->resultset();
     }
 
+    /**
+     * Every live product with units on order, for the dashboard's overdue card
+     *
+     * @return array<int, array{id: int, name: string, on_order_qty: int, expected_at: ?string}>
+     */
+    public function productsOnOrder(): array
+    {
+        return $this->database->prepare(sql: $this->loadSqlFile('stock-level-list-on-order.sql'))->resultset();
+    }
+
     /** The product's current status id (core's products.status_id), or null if there is no such product */
     public function productStatus(int $productId): ?int
     {

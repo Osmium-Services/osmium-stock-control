@@ -62,4 +62,50 @@ class StockDashboardWidget
             'route' => 'stock/edit/?id=' . (int) $row['id'],
         ];
     }
+
+    /**
+     * The "Deliveries overdue" card: products whose expected date has passed. It is an alert, so it
+     * only appears when at least one delivery is late.
+     *
+     * @param array<int, array{id: int, name: string, on_order_qty: ?int, expected_at: ?string}> $rows Every product with units on order
+     * @param string $today As Y-m-d
+     * @return array<string, mixed>|null
+     */
+    public static function overdue(array $rows, string $today): ?array
+    {
+        $late = \array_values(\array_filter(
+            $rows,
+            static fn(array $row): bool => (int) $row['on_order_qty'] > 0 && ($row['expected_at'] ?? null) !== null && $row['expected_at'] < $today,
+        ));
+
+        $nothingLate = $late === [];
+        if ($nothingLate) return null;
+
+        \usort($late, static fn(array $a, array $b): int => [$a['expected_at'], $a['name']] <=> [$b['expected_at'], $b['name']]);
+
+        return [
+            'id' => 'stock-overdue',
+            'title' => 'Deliveries overdue',
+            'icon' => 'bx-time-five',
+            'roles' => ['admin', 'editor'],
+            'order' => 21,
+            'count' => \count($late),
+            'link' => ['label' => 'View all', 'route' => 'stock/?ordering=overdue'],
+            'lines' => \array_map(static fn(array $row): array => self::overdueLine($row, $today), \array_slice($late, 0, self::MAX_LINES)),
+            'emptyText' => 'No deliveries are overdue.',
+        ];
+    }
+
+    /** @return array{text: string, sub: string, route: string} */
+    private static function overdueLine(array $row, string $today): array
+    {
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $row['expected_at']);
+        $days = (int) $date->diff(\DateTimeImmutable::createFromFormat('!Y-m-d', $today))->days;
+
+        return [
+            'text' => (string) $row['name'],
+            'sub' => (int) $row['on_order_qty'] . ' due ' . $date->format('j M Y') . ', ' . $days . ($days === 1 ? ' day late' : ' days late'),
+            'route' => 'stock/edit/?id=' . (int) $row['id'],
+        ];
+    }
 }

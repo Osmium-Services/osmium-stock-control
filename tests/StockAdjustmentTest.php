@@ -454,6 +454,30 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertSame(4, $this->reorderLevelOf($product));
     }
 
+    public function test_only_products_with_something_on_order_are_listed_for_the_dashboard(): void
+    {
+        $onOrder = $this->trackedProduct();
+        $nothing = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $onOrder, quantity: 5, expectedAt: '2026-09-01');
+
+        $ids = \array_map('intval', \array_column($this->levels->productsOnOrder(), 'id'));
+
+        $this->assertContains($onOrder, $ids);
+        $this->assertNotContains($nothing, $ids);
+    }
+
+    public function test_a_deleted_product_is_not_listed_as_on_order(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 5, expectedAt: '2026-09-01');
+        $prefix = $this->db->tablePrefix();
+        $this->db->prepare(sql: "UPDATE {$prefix}products SET deleted_at = NOW() WHERE id = :id", bindings: [':id' => $product])->execute();
+
+        $ids = \array_map('intval', \array_column($this->levels->productsOnOrder(), 'id'));
+
+        $this->assertNotContains($product, $ids);
+    }
+
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void
     {
         $product = $this->product();

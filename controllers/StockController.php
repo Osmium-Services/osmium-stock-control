@@ -38,11 +38,14 @@ class StockController extends AdminController
         $selectedOrdering = (string) $this->osmium->getStashedParam(key: 'ordering', default: '');
         $this->osmium->clearStashedQuerystring(); // Or the filter would stay on after choosing All
         $products = \array_map($this->formatProduct(...), $levels->listProducts());
+        $selectedOrdering = \in_array($selectedOrdering, ['reorder', 'overdue'], true) ? $selectedOrdering : '';
         $onlyReorder = $selectedOrdering === 'reorder';
         if ($onlyReorder) $products = \array_values(\array_filter($products, static fn(array $product): bool => $product['stock_state'] === 'reorder'));
+        $onlyOverdue = $selectedOrdering === 'overdue';
+        if ($onlyOverdue) $products = \array_values(\array_filter($products, static fn(array $product): bool => $product['on_order_state'] === 'overdue'));
 
         $this->data['admin']['stockProducts'] = $products;
-        $this->data['admin']['selectedOrdering'] = $onlyReorder ? 'reorder' : '';
+        $this->data['admin']['selectedOrdering'] = $selectedOrdering;
         $this->data['admin']['lists'] = require __DIR__ . '/../lists/stock-products.php';
 
         $this->setView('stock/index.phtml');
@@ -248,6 +251,7 @@ class StockController extends AdminController
             'is_tracked' => $isTracked,
             'reorder_label' => $reorderLevel === null ? '' : (string) $reorderLevel,
             'has_on_order' => $onOrder['state'] !== 'none',
+            'on_order_state' => $onOrder['state'],
             'on_order_html' => $this->onOrderHtml($onOrder),
             'on_order_sort' => (string) ($product['expected_at'] ?? ''),
             'on_order_value' => $onOrderQuantity === null ? '' : (string) $onOrderQuantity,

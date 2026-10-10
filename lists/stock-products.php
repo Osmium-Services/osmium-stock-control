@@ -20,7 +20,7 @@ return [
                 'server' => true,
                 'param' => 'ordering',
                 'selected' => fn(array $context): string => (string) ($context['selectedOrdering'] ?? ''),
-                'options' => [['', 'All'], ['reorder', 'Needs reorder']],
+                'options' => [['', 'All'], ['reorder', 'Needs reorder'], ['overdue', 'Overdue delivery']],
             ],
         ],
         'columns' => [

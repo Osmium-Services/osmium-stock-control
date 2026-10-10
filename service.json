@@ -33,7 +33,8 @@
             "Osmium\\Services\\StockControl\\Models\\StockOrderHooks::orderAction"
         ],
         "dashboard.widgets": [
-            "Osmium\\Services\\StockControl\\Models\\StockWidgets::dashboard"
+            "Osmium\\Services\\StockControl\\Models\\StockWidgets::dashboard",
+            "Osmium\\Services\\StockControl\\Models\\StockWidgets::overdue"
         ]
     },
     "migrations": "migrations/",
