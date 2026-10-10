@@ -17,9 +17,9 @@ require_once __DIR__ . '/../models/StockDashboardWidget.php';
  */
 final class StockDashboardWidgetTest extends TestCase
 {
-    private function row(int $id, string $name, int $quantity, int $level): array
+    private function row(int $id, string $name, int $quantity, int $level, ?int $onOrder = null): array
     {
-        return ['id' => $id, 'name' => $name, 'quantity' => $quantity, 'reorder_level' => $level];
+        return ['id' => $id, 'name' => $name, 'quantity' => $quantity, 'reorder_level' => $level, 'on_order_qty' => $onOrder];
     }
 
     private function build(array $rows): ?array
@@ -51,6 +51,25 @@ final class StockDashboardWidgetTest extends TestCase
 
         $this->assertSame(2, $widget['count']);
         $this->assertCount(expectedCount: 2, haystack: $widget['lines']);
+    }
+
+    public function test_a_product_that_is_already_on_order_is_not_counted_or_listed(): void
+    {
+        $widget = $this->build([
+            $this->row(1, 'Needs ordering', 1, 5),
+            $this->row(2, 'Already ordered', 0, 5, 20),
+        ]);
+
+        $this->assertSame(1, $widget['count']);
+        $this->assertSame(['Needs ordering'], \array_column($widget['lines'], 'text'));
+    }
+
+    public function test_when_everything_low_is_on_order_the_card_says_nothing_needs_reordering(): void
+    {
+        $widget = $this->build([$this->row(1, 'Ordered', 0, 5, 20)]);
+
+        $this->assertSame(0, $widget['count']);
+        $this->assertSame([], $widget['lines']);
     }
 
     public function test_the_most_urgent_product_is_first(): void

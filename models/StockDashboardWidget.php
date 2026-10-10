@@ -14,7 +14,7 @@ class StockDashboardWidget
     private const MAX_LINES = 5;
 
     /**
-     * @param array<int, array{id: int, name: string, quantity: int, reorder_level: int}> $rows Every product that has a reorder level
+     * @param array<int, array{id: int, name: string, quantity: int, reorder_level: int, on_order_qty?: ?int}> $rows Every product that has a reorder level
      * @return array<string, mixed>|null
      */
     public static function build(array $rows, StockCalculator $calculator): ?array
@@ -42,7 +42,7 @@ class StockDashboardWidget
     {
         $needing = \array_filter(
             $rows,
-            static fn(array $row): bool => $calculator->stockState((int) $row['quantity'], (int) $row['reorder_level']) === 'reorder',
+            static fn(array $row): bool => $calculator->stockState((int) $row['quantity'], (int) $row['reorder_level'], isset($row['on_order_qty']) ? (int) $row['on_order_qty'] : null) === 'reorder',
         );
 
         \usort($needing, static fn(array $a, array $b): int => [(int) $a['quantity'] - (int) $a['reorder_level'], $a['name']] <=> [(int) $b['quantity'] - (int) $b['reorder_level'], $b['name']]);

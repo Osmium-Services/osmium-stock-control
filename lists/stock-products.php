@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Osmium\Services\StockControl\Models\StockListFilter;
+
 /**
  * Products and their stock, rendered by Osmium\Modules\Admin\Core\ListView. Rows are shaped by StockController::formatProduct().
  */
@@ -20,7 +22,7 @@ return [
                 'server' => true,
                 'param' => 'ordering',
                 'selected' => fn(array $context): string => (string) ($context['selectedOrdering'] ?? ''),
-                'options' => [['', 'All'], ['reorder', 'Needs reorder'], ['overdue', 'Overdue delivery']],
+                'options' => StockListFilter::options(),
             ],
         ],
         'columns' => [
@@ -34,8 +36,8 @@ return [
             ],
             ['key' => 'stock_label', 'label' => 'In stock', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'stock_sort'],
             ['key' => 'reorder_label', 'label' => 'Reorder at', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'reorder_label'],
-            ['key' => 'on_order_html', 'label' => 'On order', 'type' => 'html', 'render' => fn(array $row, array $context): string => $row['on_order_html'], 'nowrap' => true, 'sortKey' => 'on_order_sort'],
             ['key' => 'state_label', 'label' => 'Ordering', 'type' => 'badge', 'text' => true, 'classKey' => 'state_class', 'nowrap' => true],
+            ['key' => 'on_order_html', 'label' => 'On order', 'type' => 'html', 'render' => fn(array $row, array $context): string => $row['on_order_html'], 'nowrap' => true, 'sortKey' => 'on_order_sort'],
             ['key' => 'status_label', 'label' => 'Status', 'type' => 'text', 'nowrap' => true],
         ],
         'actions' => [

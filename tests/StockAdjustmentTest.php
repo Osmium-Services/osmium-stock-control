@@ -254,6 +254,20 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertNotContains($withoutLevel, $ids);
     }
 
+    public function test_the_dashboard_list_carries_what_is_on_order(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setReorderLevel(productId: $product, level: 5);
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 9, expectedAt: null);
+
+        $rows = [];
+        foreach ($this->levels->productsWithReorderLevel() as $row) {
+            $rows[(int) $row['id']] = $row;
+        }
+
+        $this->assertSame(9, (int) $rows[$product]['on_order_qty']);
+    }
+
     public function test_a_deleted_product_is_not_listed_for_the_dashboard(): void
     {
         $product = $this->product();

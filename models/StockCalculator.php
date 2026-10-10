@@ -34,17 +34,21 @@ class StockCalculator
     }
 
     /**
-     * Where a product stands for ordering more: 'untracked' (no figure), 'reorder' (at or
-     * below its reorder level) or 'ok'. A tracked product with no reorder level is always ok.
+     * Where a product stands for ordering more: 'untracked' (no figure), 'reorder' (at or below its
+     * reorder level and nothing on order), 'ordered' (at or below its level but stock is already on
+     * order) or 'ok'. A tracked product with no reorder level is always ok.
      */
-    public function stockState(?int $quantity, ?int $reorderLevel): string
+    public function stockState(?int $quantity, ?int $reorderLevel, ?int $onOrder = null): string
     {
         $untracked = $quantity === null;
         if ($untracked) return 'untracked';
 
-        $needsReorder = $reorderLevel !== null && $quantity <= $reorderLevel;
+        $isLow = $reorderLevel !== null && $quantity <= $reorderLevel;
+        if (!$isLow) return 'ok';
 
-        return $needsReorder ? 'reorder' : 'ok';
+        $alreadyOrdered = $onOrder !== null && $onOrder > 0;
+
+        return $alreadyOrdered ? 'ordered' : 'reorder';
     }
 
     /**

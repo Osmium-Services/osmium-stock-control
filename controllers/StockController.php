@@ -10,7 +10,9 @@ use Osmium\Services\StockControl\Models\StockCalculator;
 use Osmium\Services\StockControl\Models\StockControlConfig;
 use Osmium\Services\StockControl\Models\StockCsv;
 use Osmium\Services\StockControl\Models\StockCsvImport;
+use Osmium\Services\StockControl\Models\StockListFilter;
 use Osmium\Services\StockControl\Models\StockOnOrder;
+use Osmium\Services\StockControl\Models\StockStateBadge;
 use Osmium\Services\StockControl\Models\StockLevels;
 
 /**
@@ -35,16 +37,11 @@ class StockController extends AdminController
         $levels = new StockLevels($this->osmium->dataSource);
 
         $this->data['admin']['isAdmin'] = $this->isAdmin();
-        $selectedOrdering = (string) $this->osmium->getStashedParam(key: 'ordering', default: '');
+        $selectedOrdering = StockListFilter::normalise((string) $this->osmium->getStashedParam(key: 'ordering', default: ''));
         $this->osmium->clearStashedQuerystring(); // Or the filter would stay on after choosing All
         $products = \array_map($this->formatProduct(...), $levels->listProducts());
-        $selectedOrdering = \in_array($selectedOrdering, ['reorder', 'overdue'], true) ? $selectedOrdering : '';
-        $onlyReorder = $selectedOrdering === 'reorder';
-        if ($onlyReorder) $products = \array_values(\array_filter($products, static fn(array $product): bool => $product['stock_state'] === 'reorder'));
-        $onlyOverdue = $selectedOrdering === 'overdue';
-        if ($onlyOverdue) $products = \array_values(\array_filter($products, static fn(array $product): bool => $product['on_order_state'] === 'overdue'));
 
-        $this->data['admin']['stockProducts'] = $products;
+        $this->data['admin']['stockProducts'] = StockListFilter::apply($products, $selectedOrdering);
         $this->data['admin']['selectedOrdering'] = $selectedOrdering;
         $this->data['admin']['lists'] = require __DIR__ . '/../lists/stock-products.php';
 
@@ -238,8 +235,8 @@ class StockController extends AdminController
         $isTracked = $product['quantity'] !== null;
         $quantity = $isTracked ? (int) $product['quantity'] : null;
         $reorderLevel = $product['reorder_level'] === null ? null : (int) $product['reorder_level'];
-        $state = (new StockCalculator())->stockState(quantity: $quantity, reorderLevel: $reorderLevel);
         $onOrderQuantity = $product['on_order_qty'] === null ? null : (int) $product['on_order_qty'];
+        $state = (new StockCalculator())->stockState(quantity: $quantity, reorderLevel: $reorderLevel, onOrder: $onOrderQuantity);
         $onOrder = StockOnOrder::describe(quantity: $onOrderQuantity, expectedAt: $product['expected_at'], today: \date('Y-m-d'));
         $name = \trim(($product['brand_name'] ?? '') . ' ' . $product['model_name']);
 
@@ -257,8 +254,8 @@ class StockController extends AdminController
             'on_order_value' => $onOrderQuantity === null ? '' : (string) $onOrderQuantity,
             'expected_value' => (string) ($product['expected_at'] ?? ''),
             'stock_state' => $state,
-            'state_label' => ['reorder' => 'Reorder', 'ok' => 'OK', 'untracked' => ''][$state],
-            'state_class' => $state === 'reorder' ? 'bg-label-danger' : 'bg-label-success',
+            'state_label' => StockStateBadge::for($state)['label'],
+            'state_class' => StockStateBadge::for($state)['class'],
         ];
     }
 
