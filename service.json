@@ -31,6 +31,9 @@
         ],
         "order.action": [
             "Osmium\\Services\\StockControl\\Models\\StockOrderHooks::orderAction"
+        ],
+        "dashboard.widgets": [
+            "Osmium\\Services\\StockControl\\Models\\StockWidgets::dashboard"
         ]
     },
     "migrations": "migrations/",

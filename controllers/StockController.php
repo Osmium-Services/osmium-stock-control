@@ -34,7 +34,13 @@ class StockController extends AdminController
         $levels = new StockLevels($this->osmium->dataSource);
 
         $this->data['admin']['isAdmin'] = $this->isAdmin();
-        $this->data['admin']['stockProducts'] = \array_map($this->formatProduct(...), $levels->listProducts());
+        $selectedOrdering = (string) $this->osmium->getStashedParam(key: 'ordering', default: '');
+        $products = \array_map($this->formatProduct(...), $levels->listProducts());
+        $onlyReorder = $selectedOrdering === 'reorder';
+        if ($onlyReorder) $products = \array_values(\array_filter($products, static fn(array $product): bool => $product['stock_state'] === 'reorder'));
+
+        $this->data['admin']['stockProducts'] = $products;
+        $this->data['admin']['selectedOrdering'] = $onlyReorder ? 'reorder' : '';
         $this->data['admin']['lists'] = require __DIR__ . '/../lists/stock-products.php';
 
         $this->setView('stock/index.phtml');

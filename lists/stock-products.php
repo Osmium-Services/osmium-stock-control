@@ -15,9 +15,12 @@ return [
         'order' => null,
         'filters' => [
             [
-                'key' => 'stock_state',
+                'key' => 'ordering',
                 'label' => 'Ordering',
-                'options' => [['', 'All'], ['reorder', 'Needs reorder'], ['ok', 'OK'], ['untracked', 'Not tracked']],
+                'server' => true,
+                'param' => 'ordering',
+                'selected' => fn(array $context): string => (string) ($context['selectedOrdering'] ?? ''),
+                'options' => [['', 'All'], ['reorder', 'Needs reorder']],
             ],
         ],
         'columns' => [

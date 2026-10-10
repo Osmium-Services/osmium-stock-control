@@ -240,6 +240,33 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertNull($this->reorderLevelOf($product));
     }
 
+    public function test_only_products_with_a_reorder_level_are_listed_for_the_dashboard(): void
+    {
+        $withLevel = $this->product();
+        $withoutLevel = $this->product();
+        $this->adjustment()->set(productId: $withLevel, quantity: 3);
+        $this->adjustment()->setReorderLevel(productId: $withLevel, level: 5);
+        $this->adjustment()->set(productId: $withoutLevel, quantity: 3);
+
+        $ids = \array_map('intval', \array_column($this->levels->productsWithReorderLevel(), 'id'));
+
+        $this->assertContains($withLevel, $ids);
+        $this->assertNotContains($withoutLevel, $ids);
+    }
+
+    public function test_a_deleted_product_is_not_listed_for_the_dashboard(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 3);
+        $this->adjustment()->setReorderLevel(productId: $product, level: 5);
+        $prefix = $this->db->tablePrefix();
+        $this->db->prepare(sql: "UPDATE {$prefix}products SET deleted_at = NOW() WHERE id = :id", bindings: [':id' => $product])->execute();
+
+        $ids = \array_map('intval', \array_column($this->levels->productsWithReorderLevel(), 'id'));
+
+        $this->assertNotContains($product, $ids);
+    }
+
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void
     {
         $product = $this->product();

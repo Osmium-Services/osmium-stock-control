@@ -69,6 +69,16 @@ class StockLevels extends Model
         return $this->database->prepare(sql: $this->loadSqlFile('stock-level-list-products.sql'))->resultset();
     }
 
+    /**
+     * Every live product that has a reorder level, with its figure: what the dashboard card works from
+     *
+     * @return array<int, array{id: int, name: string, quantity: int, reorder_level: int}>
+     */
+    public function productsWithReorderLevel(): array
+    {
+        return $this->database->prepare(sql: $this->loadSqlFile('stock-level-list-reorder.sql'))->resultset();
+    }
+
     /** The product's current status id (core's products.status_id), or null if there is no such product */
     public function productStatus(int $productId): ?int
     {
