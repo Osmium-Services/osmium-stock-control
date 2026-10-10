@@ -25,6 +25,12 @@
         ],
         "order.paid": [
             "Osmium\\Services\\StockControl\\Models\\StockHooks::orderPaid"
+        ],
+        "order.panels": [
+            "Osmium\\Services\\StockControl\\Models\\StockOrderHooks::orderPanel"
+        ],
+        "order.action": [
+            "Osmium\\Services\\StockControl\\Models\\StockOrderHooks::orderAction"
         ]
     },
     "migrations": "migrations/",

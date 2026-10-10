@@ -12,6 +12,7 @@ use Osmium\Modules\Checkout\Services\ShopOrderException;
 use Osmium\Modules\Checkout\Services\ShopOrderService;
 use Osmium\Modules\Checkout\Services\ShopTotalsService;
 use Osmium\Services\StockControl\Models\StockLevels;
+use Osmium\Services\StockControl\Models\StockOrderHooks;
 use Osmium\Services\StockControl\Models\StockMovements;
 use Tests\Integration\DatabaseTestCase;
 
@@ -22,6 +23,9 @@ require_once __DIR__ . '/../models/StockStatusSync.php';
 require_once __DIR__ . '/../models/StockDeduction.php';
 require_once __DIR__ . '/../models/StockControlConfig.php';
 require_once __DIR__ . '/../models/StockHooks.php';
+require_once __DIR__ . '/../models/StockOrderSummary.php';
+require_once __DIR__ . '/../models/StockReturn.php';
+require_once __DIR__ . '/../models/StockOrderHooks.php';
 
 /**
  * Pays a real order through core's markPaid and checks the shelf: proves the
@@ -215,5 +219,104 @@ class StockHookEndToEndTest extends DatabaseTestCase
             ipAddress: '127.0.0.1',
             userAgent: 'PHPUnit',
         );
+    }
+
+    // ── refund and return ───────────────────────────────────────────────────
+
+    private function payOrder(int $productId, int $quantity): int
+    {
+        $orderId = $this->pendingOrder($productId, $quantity);
+        $this->orders->markPaid(orderId: $orderId, captureRef: 'CAP-1', payerEmail: 'p@example.com');
+
+        return $orderId;
+    }
+
+    private function refund(int $orderId): void
+    {
+        $prefix = $this->db->tablePrefix(); // What admin's Record Refund does to the order
+        $this->db->prepare(sql: "UPDATE {$prefix}shop_orders SET status = 'refunded' WHERE id = :id", bindings: [':id' => $orderId])->execute();
+    }
+
+    private function osmium(): object
+    {
+        return (object) ['dataSource' => $this->db];
+    }
+
+    private function returnAction(int $orderId): ?array
+    {
+        return StockOrderHooks::orderAction(['action' => 'return_stock', 'orderId' => $orderId, 'osmium' => $this->osmium()]);
+    }
+
+    public function test_a_refunded_order_can_be_put_back_into_stock_once(): void
+    {
+        $product = $this->createTestProduct();
+        $this->levels->set($product, 10);
+        $orderId = $this->payOrder($product, 3);
+        $this->refund($orderId);
+
+        $result = $this->returnAction($orderId);
+
+        $this->assertSame(3, $result['units']);
+        $this->assertSame(10, $this->levels->get($product));
+        $this->expectException(\RuntimeException::class);
+        $this->returnAction($orderId);
+    }
+
+    public function test_an_order_that_is_not_refunded_cannot_be_put_back_into_stock(): void
+    {
+        $product = $this->createTestProduct();
+        $this->levels->set($product, 10);
+        $orderId = $this->payOrder($product, 3);
+
+        try {
+            $this->returnAction($orderId);
+            $this->fail('A paid order should not be returned to stock');
+        } catch (\RuntimeException) {
+            $this->assertSame(7, $this->levels->get($product));
+        }
+    }
+
+    public function test_other_actions_are_left_for_other_services(): void
+    {
+        $result = StockOrderHooks::orderAction(['action' => 'push_to_xero', 'orderId' => 1, 'osmium' => $this->osmium()]);
+
+        $this->assertNull($result);
+    }
+
+    public function test_the_panel_offers_the_return_button_only_when_refunded(): void
+    {
+        $product = $this->createTestProduct();
+        $this->levels->set($product, 10);
+        $orderId = $this->payOrder($product, 2);
+
+        $paid = StockOrderHooks::orderPanel(['order' => ['id' => $orderId, 'status' => 'paid'], 'osmium' => $this->osmium()]);
+        $refunded = StockOrderHooks::orderPanel(['order' => ['id' => $orderId, 'status' => 'refunded'], 'osmium' => $this->osmium()]);
+
+        $this->assertStringNotContainsString('returnStockBtn', $paid);
+        $this->assertStringContainsString('returnStockBtn', $refunded);
+        $this->assertMatchesRegularExpression('/<script nonce="[^"]+"/', $refunded, 'The inline script needs a real CSP nonce or the browser blocks it');
+    }
+
+    public function test_the_panel_flags_a_shortfall(): void
+    {
+        $product = $this->createTestProduct();
+        $this->levels->set($product, 10);
+        $orderId = $this->pendingOrder($product, 4);
+        $this->levels->set($product, 1); // sold elsewhere between checkout and payment
+        $this->orders->markPaid(orderId: $orderId, captureRef: 'CAP-1', payerEmail: 'p@example.com');
+
+        $panel = StockOrderHooks::orderPanel(['order' => ['id' => $orderId, 'status' => 'paid'], 'osmium' => $this->osmium()]);
+
+        $this->assertStringContainsString('Short by 3', $panel);
+    }
+
+    public function test_the_panel_is_empty_for_an_order_that_touched_no_tracked_product(): void
+    {
+        $product = $this->createTestProduct();
+        $orderId = $this->payOrder($product, 1);
+
+        $panel = StockOrderHooks::orderPanel(['order' => ['id' => $orderId, 'status' => 'paid'], 'osmium' => $this->osmium()]);
+
+        $this->assertSame('', $panel);
     }
 }

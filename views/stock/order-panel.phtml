@@ -1,0 +1,46 @@
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Stock</h5></div>
+    <div class="card-body">
+        <ul class="list-unstyled small mb-3">
+            <?php foreach ($summary['rows'] as $row): ?>
+                <li class="mb-1">
+                    <?= \htmlspecialchars($row['name']) ?>:
+                    took <?= (int) $row['taken'] ?>
+                    <?php if ($row['returned'] > 0): ?>, put back <?= (int) $row['returned'] ?><?php endif; ?>
+                    <?php if ($row['short'] > 0): ?>
+                        <span class="badge bg-warning">Short by <?= (int) $row['short'] ?></span>
+                    <?php endif; ?>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php if ($summary['hasShortfall']): ?>
+            <p class="small text-warning mb-3">Stock ran out before this order was paid. Check that the missing items can be supplied.</p>
+        <?php endif; ?>
+        <?php if ($showReturn): ?>
+            <button type="button" class="btn btn-outline-primary btn-sm w-100" id="returnStockBtn">Return items to stock</button>
+            <p class="small text-muted mt-2 mb-0">Puts back what was taken, once. Only do this if the goods are coming back.</p>
+        <?php elseif ($returnedAll): ?>
+            <p class="small text-muted mb-0">These items have been put back into stock.</p>
+        <?php endif; ?>
+    </div>
+</div>
+<?php if ($showReturn): ?>
+<script nonce="<?= $cspNonce ?? '' ?>">
+document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('returnStockBtn');
+    if (!btn || !window.osmiumOrder) return;
+
+    btn.addEventListener('click', function () {
+        btn.disabled = true;
+        window.osmiumOrder.post({ action: 'return_stock' }).then(function (data) {
+            if (!data.success) {
+                window.osmiumOrder.feedback(data.error || 'Could not return the items to stock', true);
+                btn.disabled = false;
+                return;
+            }
+            window.osmiumOrder.returnToOrder();
+        });
+    });
+});
+</script>
+<?php endif; ?>

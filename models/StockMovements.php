@@ -46,6 +46,17 @@ class StockMovements extends Model
         )->execute();
     }
 
+    /** The order's status in core (paid, refunded, ...), or null when there is no such order */
+    public function orderStatus(int $orderId): ?string
+    {
+        $row = $this->database->prepare(
+            sql: $this->loadSqlFile('order-status-get.sql'),
+            bindings: [':order_id' => $orderId],
+        )->single();
+
+        return $row === false ? null : (string) $row['status'];
+    }
+
     /** @return array<int, array<string, mixed>> */
     public function forOrder(int $orderId): array
     {
