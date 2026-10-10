@@ -11,8 +11,10 @@ use Osmium\Services\StockControl\Models\StockControlConfig;
 use Osmium\Services\StockControl\Models\StockCsv;
 use Osmium\Services\StockControl\Models\StockCsvImport;
 use Osmium\Services\StockControl\Models\StockListFilter;
+use Osmium\Services\StockControl\Models\StockMovements;
 use Osmium\Services\StockControl\Models\StockOnOrder;
 use Osmium\Services\StockControl\Models\StockStateBadge;
+use Osmium\Services\StockControl\Models\StockHistory;
 use Osmium\Services\StockControl\Models\StockLevels;
 
 /**
@@ -21,6 +23,7 @@ use Osmium\Services\StockControl\Models\StockLevels;
  * Routes:
  *   - index()  → /admin/stock/
  *   - edit()   → /admin/stock/edit/?id=N   (N is the product id)
+ *   - history() → /admin/stock/history/?id=N (a product's stock history)
  *   - action() → /admin/stock/action/      (save, stop_tracking)
  *   - export() → /admin/stock/export/      (CSV download)
  *   - import() → /admin/stock/import/      (upload a CSV of new figures)
@@ -76,6 +79,21 @@ class StockController extends AdminController
         $this->data['admin']['maxImportSize'] = (self::MAX_IMPORT_BYTES / 1048576) . ' MB';
 
         $this->setView('stock/import.phtml');
+    }
+
+    public function history(): void
+    {
+        $id = (int) $this->osmium->getStashedParam(key: 'id', default: 0); // Core moves query params out of $_GET
+        $this->osmium->clearStashedQuerystring();
+        $product = $this->findProduct($id);
+        if (!$product) $this->redirect('stock/');
+
+        $movements = (new StockMovements($this->osmium->dataSource))->forProduct($id);
+
+        $this->data['admin']['stockProduct'] = $this->formatProduct($product);
+        $this->data['admin']['stockHistory'] = \array_map(StockHistory::row(...), $movements);
+
+        $this->setView('stock/history.phtml');
     }
 
     public function action()
@@ -243,6 +261,7 @@ class StockController extends AdminController
         return $product + [
             'name' => $name,
             'edit_url' => $this->getBasePath() . 'stock/edit/?id=' . (int) $product['id'],
+            'history_url' => $this->getBasePath() . 'stock/history/?id=' . (int) $product['id'],
             'stock_label' => $isTracked ? (string) (int) $product['quantity'] : 'Not tracked',
             'stock_sort' => $isTracked ? (int) $product['quantity'] : -1,
             'is_tracked' => $isTracked,

@@ -42,6 +42,7 @@ return [
         ],
         'actions' => [
             ['label' => 'Set stock', 'icon' => 'bx-edit-alt', 'url' => '{edit_url}'],
+            ['label' => 'History', 'icon' => 'bx-history', 'url' => '{history_url}'],
             [
                 'label' => 'Receive stock',
                 'icon' => 'bx-package',

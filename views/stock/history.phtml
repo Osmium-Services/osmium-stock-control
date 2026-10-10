@@ -1,0 +1,54 @@
+<?php $product = $admin['stockProduct']; ?>
+<div class="d-flex justify-content-between align-items-center py-3 mb-4">
+    <h4 class="mb-0">
+        <span class="text-muted fw-light">Shop / Stock /</span> History
+    </h4>
+    <div class="d-flex gap-2">
+        <a href="<?= $adminUrl('stock/edit/?id=' . (int) $product['id']) ?>" class="btn btn-outline-secondary">
+            <i class="bx bx-edit-alt me-1"></i> Set stock
+        </a>
+        <a href="<?= $adminUrl('stock/') ?>" class="btn btn-label-secondary">
+            <i class="bx bx-arrow-back me-1"></i> All stock
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><?= \htmlspecialchars($product['name']) ?></h5>
+        <small class="text-muted"><?= $product['is_tracked'] ? (int) $product['quantity'] . ' in stock now' : 'Not tracked' ?>. Latest 200 changes, newest first.</small>
+    </div>
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>When</th>
+                    <th class="text-end">Change</th>
+                    <th>What</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (!$admin['stockHistory']): ?>
+                    <tr><td colspan="4" class="text-muted">No changes recorded yet.</td></tr>
+                <?php endif; ?>
+                <?php foreach ($admin['stockHistory'] as $row): ?>
+                    <tr>
+                        <td class="text-nowrap"><?= \htmlspecialchars($row['when']) ?></td>
+                        <td class="text-end fw-semibold <?= \htmlspecialchars($row['changeClass']) ?>"><?= \htmlspecialchars($row['change']) ?></td>
+                        <td class="text-nowrap">
+                            <?= \htmlspecialchars($row['reason']) ?>
+                            <?php if ($row['orderId'] !== null): ?>
+                                <a href="<?= $adminUrl('shop/orders/view/?id=' . $row['orderId']) ?>">order <?= (int) $row['orderId'] ?></a>
+                            <?php endif; ?>
+                            <?php if ($row['shortfall'] !== ''): ?>
+                                <span class="badge bg-label-warning"><?= \htmlspecialchars($row['shortfall']) ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= \htmlspecialchars($row['note']) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>

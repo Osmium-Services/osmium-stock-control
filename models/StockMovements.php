@@ -46,6 +46,19 @@ class StockMovements extends Model
         )->execute();
     }
 
+    /**
+     * A product's history, newest first, capped at the latest 200 entries
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function forProduct(int $productId): array
+    {
+        return $this->database->prepare(
+            sql: $this->loadSqlFile('stock-movement-list-by-product.sql'),
+            bindings: [':product_id' => $productId],
+        )->resultset();
+    }
+
     /** The order's status in core (paid, refunded, ...), or null when there is no such order */
     public function orderStatus(int $orderId): ?string
     {

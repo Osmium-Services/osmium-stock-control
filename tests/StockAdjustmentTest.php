@@ -99,6 +99,42 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertCount(expectedCount: 1, haystack: $this->movementsFor($product));
     }
 
+    public function test_a_note_on_an_unchanged_figure_is_kept_as_a_note_entry(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 4);
+
+        $this->adjustment()->set(productId: $product, quantity: 4, note: 'Recounted: all correct');
+
+        $movements = $this->movementsFor($product);
+        $this->assertCount(expectedCount: 2, haystack: $movements);
+        $this->assertSame(['change_qty' => 0, 'reason' => 'manual', 'note' => 'Recounted: all correct'], $movements[1]);
+        $this->assertSame(4, $this->levels->get($product));
+    }
+
+    public function test_a_note_on_an_unchanged_figure_does_not_touch_the_status(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 0);
+        $this->assertSame($this->outOfStock, $this->statusOf($product));
+
+        $this->adjustment()->set(productId: $product, quantity: 0, note: 'Still none');
+
+        $this->assertSame($this->outOfStock, $this->statusOf($product));
+    }
+
+    public function test_a_changed_figure_still_records_one_entry_with_the_note(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 4);
+
+        $this->adjustment()->set(productId: $product, quantity: 6, note: 'Delivery');
+
+        $movements = $this->movementsFor($product);
+        $this->assertCount(expectedCount: 2, haystack: $movements);
+        $this->assertSame(['change_qty' => 2, 'reason' => 'manual', 'note' => 'Delivery'], $movements[1]);
+    }
+
     public function test_a_negative_figure_is_refused_and_nothing_is_written(): void
     {
         $product = $this->product();
@@ -490,6 +526,35 @@ class StockAdjustmentTest extends DatabaseTestCase
         $ids = \array_map('intval', \array_column($this->levels->productsOnOrder(), 'id'));
 
         $this->assertNotContains($product, $ids);
+    }
+
+    // ── a product's history ─────────────────────────────────────────────────
+
+    public function test_a_products_history_is_newest_first_and_only_its_own(): void
+    {
+        $product = $this->product();
+        $other = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 5, note: 'First');
+        $this->adjustment()->set(productId: $product, quantity: 8, note: 'Second');
+        $this->adjustment()->set(productId: $other, quantity: 1, note: 'Not mine');
+
+        $notes = \array_column((new \Osmium\Services\StockControl\Models\StockMovements($this->db))->forProduct($product), 'note');
+
+        $this->assertSame(['Second', 'First'], $notes);
+    }
+
+    public function test_a_products_history_is_capped_at_two_hundred_entries(): void
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 1);
+        foreach (\range(1, 205) as $number) {
+            $this->adjustment()->set(productId: $product, quantity: 1, note: "Note {$number}");
+        }
+
+        $rows = (new \Osmium\Services\StockControl\Models\StockMovements($this->db))->forProduct($product);
+
+        $this->assertCount(expectedCount: 200, haystack: $rows);
+        $this->assertSame('Note 205', $rows[0]['note']);
     }
 
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void

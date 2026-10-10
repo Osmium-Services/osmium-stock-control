@@ -95,6 +95,12 @@
                 "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
                 "method": "import",
                 "title": "Import Stock"
+            },
+            "admin/stock/history": {
+                "controller": "controllers/StockController.php",
+                "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
+                "method": "history",
+                "title": "Stock History"
             }
         }
     }
