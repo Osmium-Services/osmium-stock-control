@@ -8,6 +8,8 @@ use Osmium\Modules\Admin\Core\AdminController;
 use Osmium\Services\StockControl\Models\StockAdjustment;
 use Osmium\Services\StockControl\Models\StockCalculator;
 use Osmium\Services\StockControl\Models\StockControlConfig;
+use Osmium\Services\StockControl\Models\StockCsv;
+use Osmium\Services\StockControl\Models\StockCsvImport;
 use Osmium\Services\StockControl\Models\StockLevels;
 
 /**
@@ -17,10 +19,13 @@ use Osmium\Services\StockControl\Models\StockLevels;
  *   - index()  → /admin/stock/
  *   - edit()   → /admin/stock/edit/?id=N   (N is the product id)
  *   - action() → /admin/stock/action/      (save, stop_tracking)
+ *   - export() → /admin/stock/export/      (CSV download)
+ *   - import() → /admin/stock/import/      (upload a CSV of new figures)
  */
 class StockController extends AdminController
 {
     private const RECORD_TYPE = 'stock_level';
+    private const MAX_IMPORT_BYTES = 2097152;
 
     public function index(): void
     {
@@ -45,6 +50,24 @@ class StockController extends AdminController
         $this->data['admin']['stockProduct'] = $this->formatProduct($product);
 
         $this->setView('stock/edit.phtml');
+    }
+
+    public function export(): void
+    {
+        $products = (new StockLevels($this->osmium->dataSource))->listProducts();
+
+        \header('Content-Type: text/csv; charset=utf-8');
+        \header('Content-Disposition: attachment; filename="stock-export-' . \date('Y-m-d') . '.csv"');
+        echo StockCsv::export($products);
+        exit;
+    }
+
+    public function import(): void
+    {
+        $this->data['admin']['importResults'] = $this->isPost() ? $this->runImport() : null;
+        $this->data['admin']['maxImportSize'] = (self::MAX_IMPORT_BYTES / 1048576) . ' MB';
+
+        $this->setView('stock/import.phtml');
     }
 
     public function action()
@@ -72,6 +95,30 @@ class StockController extends AdminController
         } catch (\Exception $e) {
             $this->admin->jsonError($e->getMessage());
         }
+    }
+
+    private function runImport(): array
+    {
+        $csrfValid = $this->admin->auth->validateCsrf();
+        if (!$csrfValid) return ['error' => 'Invalid form submission. Please try again.'];
+
+        $file = $_FILES['csv_file'] ?? null;
+        $uploadFailed = $file === null || $file['error'] !== UPLOAD_ERR_OK;
+        if ($uploadFailed) return ['error' => 'File upload failed'];
+
+        $isCsv = \str_ends_with(\strtolower((string) $file['name']), '.csv');
+        if (!$isCsv) return ['error' => 'Please upload a CSV file'];
+
+        $tooBig = $file['size'] > self::MAX_IMPORT_BYTES;
+        if ($tooBig) return ['error' => 'That file is too big for a stock sheet'];
+
+        $import = new StockCsvImport(levels: new StockLevels($this->osmium->dataSource), adjustment: $this->adjustment());
+        $result = $import->apply((string) \file_get_contents($file['tmp_name']));
+
+        $hasChanges = $result['updated'] > 0;
+        if ($hasChanges) $this->admin->model->changelog->log(description: 'Imported stock figures from CSV (' . $result['updated'] . ' changed)', recordType: self::RECORD_TYPE);
+
+        return $result;
     }
 
     private function save(int $productId, array $input): array
@@ -108,6 +155,11 @@ class StockController extends AdminController
             outOfStockStatusId: $config->outOfStockStatusId,
             inStockStatusId: $config->inStockStatusId,
         );
+    }
+
+    private function isPost(): bool
+    {
+        return $_SERVER['REQUEST_METHOD'] === 'POST';
     }
 
     private function findProduct(int $id): ?array

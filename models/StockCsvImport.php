@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Osmium\Services\StockControl\Models;
+
+/**
+ * Applies an uploaded stock spreadsheet. Each figure goes through StockAdjustment, the same
+ * code as the Set stock page, so every change is audited and the product's status follows.
+ * A bad row is reported and the rest still apply.
+ */
+class StockCsvImport
+{
+    private const NOTE = 'CSV import';
+
+    public function __construct(
+        private StockLevels $levels,
+        private StockAdjustment $adjustment,
+    ) {}
+
+    /**
+     * @return array{error: ?string, updated: int, unchanged: int, skipped: int, errors: array<int, string>}
+     */
+    public function apply(string $content): array
+    {
+        $result = ['error' => null, 'updated' => 0, 'unchanged' => 0, 'skipped' => 0, 'errors' => []];
+
+        $parsed = StockCsv::parse($content);
+        $unreadable = $parsed['error'] !== null;
+        if ($unreadable) return ['error' => $parsed['error']] + $result;
+
+        foreach ($parsed['rows'] as $row) {
+            $outcome = $this->applyRow($row);
+            $isError = \is_string($outcome) && \str_starts_with($outcome, 'Row ');
+            if ($isError) $result['errors'][] = $outcome;
+            if (!$isError) $result[$outcome]++;
+        }
+
+        return $result;
+    }
+
+    /** @return string 'updated', 'unchanged', 'skipped', or an error message starting "Row N: " */
+    private function applyRow(array $row): string
+    {
+        $line = (int) $row['line'];
+
+        $hasError = isset($row['error']);
+        if ($hasError) return "Row {$line}: {$row['error']}";
+
+        $isBlank = $row['quantity'] === null;
+        if ($isBlank) return 'skipped';
+
+        $current = $this->levels->get($row['id']);
+        $isUnchanged = $current === $row['quantity'];
+        if ($isUnchanged) return 'unchanged';
+
+        try {
+            $this->adjustment->set(productId: $row['id'], quantity: $row['quantity'], note: self::NOTE);
+        } catch (\InvalidArgumentException $e) {
+            return "Row {$line}: Product ID {$row['id']} not found";
+        }
+
+        return 'updated';
+    }
+}

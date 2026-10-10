@@ -1,0 +1,109 @@
+<?php
+$results = $admin['importResults'] ?? null;
+$hasError = $results && $results['error'] !== null;
+$isDone = $results && $results['error'] === null;
+?>
+
+<div class="d-flex justify-content-between align-items-center py-3 mb-4">
+    <h4 class="mb-0">
+        <span class="text-muted fw-light">Shop / Stock /</span> Import
+    </h4>
+    <a href="<?= $adminUrl('stock/') ?>" class="btn btn-outline-secondary">
+        <i class="bx bx-arrow-back me-1"></i> Back to Stock
+    </a>
+</div>
+
+<?php if ($hasError): ?>
+<div class="alert alert-danger">
+    <i class="bx bx-error-circle me-1"></i>
+    <?= \htmlspecialchars($results['error']) ?>
+</div>
+<?php endif; ?>
+
+<?php if ($isDone): ?>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bx bx-check-circle me-2 text-success"></i>Import Complete</h5>
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="p-3">
+                    <h2 class="text-success mb-1"><?= (int) $results['updated'] ?></h2>
+                    <p class="text-muted mb-0">Updated</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3">
+                    <h2 class="text-secondary mb-1"><?= (int) $results['unchanged'] ?></h2>
+                    <p class="text-muted mb-0">Unchanged</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3">
+                    <h2 class="text-secondary mb-1"><?= (int) $results['skipped'] ?></h2>
+                    <p class="text-muted mb-0">Left alone (blank)</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3">
+                    <h2 class="text-danger mb-1"><?= \count($results['errors']) ?></h2>
+                    <p class="text-muted mb-0">Errors</p>
+                </div>
+            </div>
+        </div>
+
+        <?php if (!empty($results['errors'])): ?>
+        <hr>
+        <h6 class="text-danger">Errors:</h6>
+        <ul class="mb-0">
+            <?php foreach ($results['errors'] as $error): ?>
+                <li><?= \htmlspecialchars($error) ?></li>
+            <?php endforeach; ?>
+        </ul>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Upload Stock CSV</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="<?= $adminUrl('stock/import/') ?>" enctype="multipart/form-data">
+            <input type="hidden" name="token" value="<?= $template['formToken'] ?? '' ?>">
+            <div class="mb-3">
+                <label for="csv_file" class="form-label fw-semibold">CSV File</label>
+                <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                <div class="form-text">
+                    Upload a CSV exported from this page with updated figures. Only the <strong>In stock</strong> column is imported. Max file size: <?= \htmlspecialchars($admin['maxImportSize']) ?>.
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bx bx-import me-1"></i> Import Stock
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Instructions</h5>
+    </div>
+    <div class="card-body">
+        <ol class="mb-3">
+            <li>First, <a href="<?= $adminUrl('stock/export/') ?>">export the current stock list</a> as CSV</li>
+            <li>Open the CSV in Excel or Google Sheets</li>
+            <li>Change the <strong>In stock</strong> column</li>
+            <li>Save as CSV and upload here</li>
+        </ol>
+        <ul class="mb-0">
+            <li>A number sets that product's stock. A product that was not tracked starts being tracked.</li>
+            <li>Leave <strong>In stock</strong> blank to leave a product alone. Use 0 for "none left".</li>
+            <li>Products are matched by <strong>ID</strong>, so do not change that column.</li>
+            <li>Each change is recorded in the stock history, and a product at 0 moves to the out-of-stock status.</li>
+            <li>Rows with the same figure are skipped. A bad row is reported and the rest still apply.</li>
+        </ul>
+    </div>
+</div>

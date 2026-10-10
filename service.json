@@ -1,7 +1,7 @@
 {
     "id": "osmium-stock-control",
     "name": "Osmium Stock Control",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Counts stock down when an order is paid, stops customers adding more than is in stock, and treats a kit's parts as stock of their own",
     "category": "shop",
     "author": {
@@ -80,6 +80,17 @@
                 "class": "Osmium\\Services\\StockControl\\Controllers\\StockSettingsController",
                 "method": "index",
                 "title": "Stock Settings"
+            },
+            "admin/stock/export": {
+                "controller": "controllers/StockController.php",
+                "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
+                "method": "export"
+            },
+            "admin/stock/import": {
+                "controller": "controllers/StockController.php",
+                "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
+                "method": "import",
+                "title": "Import Stock"
             }
         }
     }

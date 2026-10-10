@@ -15,6 +15,14 @@ $listContext = [
     <h4 class="mb-0">
         <span class="text-muted fw-light">Shop /</span> Stock
     </h4>
+    <div class="d-flex gap-2">
+        <a href="<?= $adminUrl('stock/import/') ?>" class="btn btn-outline-secondary">
+            <i class="bx bx-import me-1"></i> Import CSV
+        </a>
+        <a href="<?= $adminUrl('stock/export/') ?>" class="btn btn-outline-secondary">
+            <i class="bx bx-export me-1"></i> Export CSV
+        </a>
+    </div>
 </div>
 
 <?= ListView::render($admin['lists']['products'], $admin['stockProducts'], $listContext) ?>
