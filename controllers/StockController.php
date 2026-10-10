@@ -26,7 +26,7 @@ use Osmium\Services\StockControl\Models\StockLevels;
  *   - history() → /admin/stock/history/?id=N (a product's stock history)
  *   - action() → /admin/stock/action/      (save, stop_tracking)
  *   - export() → /admin/stock/export/      (CSV download)
- *   - import() → /admin/stock/import/      (upload a CSV of new figures)
+ *   - import() → /admin/stock/import/      (upload a CSV of new figures; admin only)
  */
 class StockController extends AdminController
 {
@@ -78,6 +78,9 @@ class StockController extends AdminController
 
     public function import(): void
     {
+        $notAdmin = !$this->admin->auth->isAdmin(); // Same rule as the product price import: only an admin may overwrite figures in bulk
+        if ($notAdmin) $this->redirect('stock/');
+
         $this->data['admin']['importResults'] = $this->isPost() ? $this->runImport() : null;
         $this->data['admin']['maxImportSize'] = (self::MAX_IMPORT_BYTES / 1048576) . ' MB';
 
