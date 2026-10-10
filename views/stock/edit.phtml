@@ -31,6 +31,19 @@
                     value="<?= \htmlspecialchars((string) $product['reorder_label']) ?>">
                 <div class="form-text">The product shows up for reordering when stock is at or below this. Leave blank for no alert.</div>
             </div>
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label for="stockOnOrder" class="form-label">On order (units)</label>
+                    <input type="number" class="form-control" id="stockOnOrder" min="0" step="1"
+                        value="<?= \htmlspecialchars((string) $product['on_order_value']) ?>">
+                </div>
+                <div class="col-6 mb-3">
+                    <label for="stockExpected" class="form-label">Expected date</label>
+                    <input type="date" class="form-control" id="stockExpected"
+                        value="<?= \htmlspecialchars((string) $product['expected_value']) ?>">
+                </div>
+                <div class="form-text mb-3 mt-n2">Stock ordered from your supplier and not yet received. This is for your information in the admin: it does not change the product's status or what customers see.</div>
+            </div>
             <div class="mb-3">
                 <label for="stockNote" class="form-label">Note (optional)</label>
                 <input type="text" class="form-control" id="stockNote" maxlength="255" placeholder="e.g. Delivery from supplier">

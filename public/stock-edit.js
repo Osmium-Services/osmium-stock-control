@@ -30,6 +30,8 @@
                     id: Number(document.getElementById('stockProductId').value) || 0,
                     quantity: document.getElementById('stockQuantity').value,
                     reorder_level: document.getElementById('stockReorder').value,
+                    on_order: document.getElementById('stockOnOrder').value,
+                    expected_at: document.getElementById('stockExpected').value,
                     note: document.getElementById('stockNote').value
                 })
             });

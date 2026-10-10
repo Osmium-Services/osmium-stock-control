@@ -10,6 +10,7 @@ use Osmium\Services\StockControl\Models\StockCalculator;
 use Osmium\Services\StockControl\Models\StockControlConfig;
 use Osmium\Services\StockControl\Models\StockCsv;
 use Osmium\Services\StockControl\Models\StockCsvImport;
+use Osmium\Services\StockControl\Models\StockOnOrder;
 use Osmium\Services\StockControl\Models\StockLevels;
 
 /**
@@ -139,9 +140,11 @@ class StockController extends AdminController
         if ($noteTooLong) throw new \InvalidArgumentException('A note can be up to 255 characters');
 
         $reorderLevel = $this->readReorderLevel($input['reorder_level'] ?? '');
+        [$onOrder, $expectedAt] = $this->readOnOrder(quantity: $input['on_order'] ?? '', date: $input['expected_at'] ?? '');
 
         $this->adjustment()->set(productId: $productId, quantity: (int) $rawQuantity, note: $note === '' ? null : $note);
         $this->adjustment()->setReorderLevel(productId: $productId, level: $reorderLevel);
+        $this->adjustment()->setOnOrder(productId: $productId, quantity: $onOrder, expectedAt: $expectedAt);
         $this->logChange(action: 'Set stock to ' . (int) $rawQuantity . ' for', productId: $productId);
 
         return ['success' => true];
@@ -158,6 +161,29 @@ class StockController extends AdminController
         if (!$isWholeNumber) throw new \InvalidArgumentException('Enter the reorder level as a whole number, or leave it blank');
 
         return (int) $raw;
+    }
+
+    /**
+     * Units on order and the date they are expected, each null when its box was left blank
+     *
+     * @return array{0: ?int, 1: ?string}
+     */
+    private function readOnOrder(mixed $quantity, mixed $date): array
+    {
+        $quantity = \trim((string) $quantity);
+        $date = \trim((string) $date);
+
+        $noUnits = $quantity === '';
+        $dateWithoutUnits = $noUnits && $date !== '';
+        if ($dateWithoutUnits) throw new \InvalidArgumentException('Enter how many are on order, or clear the expected date');
+
+        $unitsBad = !$noUnits && \preg_match('/^\d{1,9}$/', $quantity) !== 1;
+        if ($unitsBad) throw new \InvalidArgumentException('Enter the units on order as a whole number, or leave it blank');
+
+        $dateBad = $date !== '' && !StockOnOrder::isValidDate($date);
+        if ($dateBad) throw new \InvalidArgumentException('The expected date is not a valid date');
+
+        return [$noUnits ? null : (int) $quantity, $date === '' ? null : $date];
     }
 
     private function stopTracking(int $productId): array
@@ -201,6 +227,8 @@ class StockController extends AdminController
         $quantity = $isTracked ? (int) $product['quantity'] : null;
         $reorderLevel = $product['reorder_level'] === null ? null : (int) $product['reorder_level'];
         $state = (new StockCalculator())->stockState(quantity: $quantity, reorderLevel: $reorderLevel);
+        $onOrderQuantity = $product['on_order_qty'] === null ? null : (int) $product['on_order_qty'];
+        $onOrder = StockOnOrder::describe(quantity: $onOrderQuantity, expectedAt: $product['expected_at'], today: \date('Y-m-d'));
         $name = \trim(($product['brand_name'] ?? '') . ' ' . $product['model_name']);
 
         return $product + [
@@ -210,10 +238,27 @@ class StockController extends AdminController
             'stock_sort' => $isTracked ? (int) $product['quantity'] : -1,
             'is_tracked' => $isTracked,
             'reorder_label' => $reorderLevel === null ? '' : (string) $reorderLevel,
+            'on_order_html' => $this->onOrderHtml($onOrder),
+            'on_order_sort' => (string) ($product['expected_at'] ?? ''),
+            'on_order_value' => $onOrderQuantity === null ? '' : (string) $onOrderQuantity,
+            'expected_value' => (string) ($product['expected_at'] ?? ''),
             'stock_state' => $state,
             'state_label' => ['reorder' => 'Reorder', 'ok' => 'OK', 'untracked' => ''][$state],
             'state_class' => $state === 'reorder' ? 'bg-label-danger' : 'bg-label-success',
         ];
+    }
+
+    /** The On order cell: plain text, with a red badge once the date has passed */
+    private function onOrderHtml(array $onOrder): string
+    {
+        $label = \htmlspecialchars($onOrder['label']);
+
+        return match ($onOrder['state']) {
+            'none' => '',
+            'overdue' => '<span class="badge bg-label-danger">' . $label . ' (overdue)</span>',
+            'undated' => '<span class="text-muted">' . $label . '</span>',
+            default => $label,
+        };
     }
 
     private function logChange(string $action, int $productId): void

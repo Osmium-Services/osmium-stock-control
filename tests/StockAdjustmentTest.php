@@ -267,6 +267,105 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertNotContains($product, $ids);
     }
 
+    // ── on order ────────────────────────────────────────────────────────────
+
+    private function onOrderOf(int $productId): array
+    {
+        foreach ($this->levels->listProducts() as $row) {
+            $isWanted = (int) $row['id'] === $productId;
+            if ($isWanted) return [$row['on_order_qty'] === null ? null : (int) $row['on_order_qty'], $row['expected_at']];
+        }
+
+        return [null, null];
+    }
+
+    private function trackedProduct(): int
+    {
+        $product = $this->product();
+        $this->adjustment()->set(productId: $product, quantity: 3);
+
+        return $product;
+    }
+
+    public function test_units_on_order_and_a_date_can_be_set_for_a_tracked_product(): void
+    {
+        $product = $this->trackedProduct();
+
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: '2026-11-12');
+
+        $this->assertSame([12, '2026-11-12'], $this->onOrderOf($product));
+    }
+
+    public function test_units_can_be_on_order_with_no_date_yet(): void
+    {
+        $product = $this->trackedProduct();
+
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: null);
+
+        $this->assertSame([12, null], $this->onOrderOf($product));
+    }
+
+    public function test_clearing_the_units_clears_the_date_too(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: '2026-11-12');
+
+        $this->adjustment()->setOnOrder(productId: $product, quantity: null, expectedAt: '2026-11-12');
+
+        $this->assertSame([null, null], $this->onOrderOf($product));
+    }
+
+    public function test_zero_units_on_order_clears_it(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: '2026-11-12');
+
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 0, expectedAt: null);
+
+        $this->assertSame([null, null], $this->onOrderOf($product));
+    }
+
+    public function test_on_order_is_refused_for_an_untracked_product(): void
+    {
+        $product = $this->product();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 5, expectedAt: null);
+    }
+
+    public function test_an_impossible_date_is_refused_and_nothing_changes(): void
+    {
+        $product = $this->trackedProduct();
+
+        try {
+            $this->adjustment()->setOnOrder(productId: $product, quantity: 5, expectedAt: '2026-02-30');
+            $this->fail('An impossible date should be refused');
+        } catch (\InvalidArgumentException) {
+            $this->assertSame([null, null], $this->onOrderOf($product));
+        }
+    }
+
+    public function test_changing_the_stock_figure_keeps_what_is_on_order(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: '2026-11-12');
+
+        $this->adjustment()->set(productId: $product, quantity: 1);
+
+        $this->assertSame([12, '2026-11-12'], $this->onOrderOf($product));
+    }
+
+    public function test_changing_the_reorder_level_keeps_what_is_on_order(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 12, expectedAt: '2026-11-12');
+
+        $this->adjustment()->setReorderLevel(productId: $product, level: 5);
+
+        $this->assertSame([12, '2026-11-12'], $this->onOrderOf($product));
+    }
+
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void
     {
         $product = $this->product();

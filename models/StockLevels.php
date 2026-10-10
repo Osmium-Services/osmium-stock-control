@@ -63,6 +63,15 @@ class StockLevels extends Model
         )->execute();
     }
 
+    /** Record what is on order (null clears it). Does nothing for an untracked product. */
+    public function setOnOrder(int $productId, ?int $quantity, ?string $expectedAt): void
+    {
+        $this->database->prepare(
+            sql: $this->loadSqlFile('stock-level-set-on-order.sql'),
+            bindings: [':product_id' => $productId, ':on_order_qty' => $quantity, ':expected_at' => $expectedAt],
+        )->execute();
+    }
+
     /** Stop tracking a product: stock control leaves it alone again */
     public function stopTracking(int $productId): void
     {

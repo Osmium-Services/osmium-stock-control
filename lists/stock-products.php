@@ -34,6 +34,7 @@ return [
             ],
             ['key' => 'stock_label', 'label' => 'In stock', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'stock_sort'],
             ['key' => 'reorder_label', 'label' => 'Reorder at', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'reorder_label'],
+            ['key' => 'on_order_html', 'label' => 'On order', 'type' => 'html', 'render' => fn(array $row, array $context): string => $row['on_order_html'], 'nowrap' => true, 'sortKey' => 'on_order_sort'],
             ['key' => 'state_label', 'label' => 'Ordering', 'type' => 'badge', 'text' => true, 'classKey' => 'state_class', 'nowrap' => true],
             ['key' => 'status_label', 'label' => 'Status', 'type' => 'text', 'nowrap' => true],
         ],

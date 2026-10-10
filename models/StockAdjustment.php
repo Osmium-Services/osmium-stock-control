@@ -65,6 +65,30 @@ class StockAdjustment
         $this->levels->setReorderLevel(productId: $productId, level: $level);
     }
 
+    /**
+     * Record units on order from the supplier and when they are expected. No units (null or zero)
+     * clears both, since a date means nothing without units.
+     *
+     * @param string|null $expectedAt Y-m-d, or null when the date is not known yet
+     * @throws \InvalidArgumentException For a product that is not tracked yet, or a date that is not a real date
+     */
+    public function setOnOrder(int $productId, ?int $quantity, ?string $expectedAt): void
+    {
+        $untracked = $this->levels->get($productId) === null;
+        if ($untracked) throw new \InvalidArgumentException('Set a stock figure first: only tracked products can be on order');
+
+        $nothingOnOrder = $quantity === null || $quantity <= 0;
+        if ($nothingOnOrder) {
+            $this->levels->setOnOrder(productId: $productId, quantity: null, expectedAt: null);
+            return;
+        }
+
+        $badDate = $expectedAt !== null && !StockOnOrder::isValidDate($expectedAt);
+        if ($badDate) throw new \InvalidArgumentException('The expected date is not a valid date');
+
+        $this->levels->setOnOrder(productId: $productId, quantity: $quantity, expectedAt: $expectedAt);
+    }
+
     public function stopTracking(int $productId, ?string $note = null): void
     {
         $this->inTransaction(function () use ($productId, $note): void {
