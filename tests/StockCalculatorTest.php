@@ -32,6 +32,29 @@ final class StockCalculatorTest extends TestCase
         return ['product_id' => $productId, 'option_value_id' => null, 'quantity' => $quantity];
     }
 
+    // ── what the shelf cannot cover ─────────────────────────────────────────
+
+    public function test_nothing_is_short_when_every_tracked_product_has_enough(): void
+    {
+        $this->assertSame([], $this->calc->shortages([10 => 2, 20 => 1], [10 => 2, 20 => 5]));
+    }
+
+    public function test_a_product_wanted_beyond_its_shelf_is_short_by_what_is_there(): void
+    {
+        $this->assertSame([20 => 1], $this->calc->shortages([10 => 1, 20 => 3], [10 => 5, 20 => 1]));
+    }
+
+    public function test_an_untracked_product_is_never_short(): void
+    {
+        $this->assertSame([], $this->calc->shortages([10 => 99], [10 => null]));
+        $this->assertSame([], $this->calc->shortages([10 => 99], []));
+    }
+
+    public function test_a_negative_shelf_counts_as_nothing_available(): void
+    {
+        $this->assertSame([10 => 0], $this->calc->shortages([10 => 1], [10 => -3]));
+    }
+
     // ── units an order takes ────────────────────────────────────────────────
 
     public function test_a_plain_line_takes_its_quantity_of_its_own_product(): void

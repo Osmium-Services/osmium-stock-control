@@ -20,6 +20,8 @@
     ],
 
     "hooks": {
+        "basket.line.check": ["Osmium\\Services\\StockControl\\Models\\StockHooks::basketLineCheck"],
+        "order.check": ["Osmium\\Services\\StockControl\\Models\\StockHooks::orderCheck"],
         "order.paid": ["Osmium\\Services\\StockControl\\Models\\StockHooks::orderPaid"]
     },
 

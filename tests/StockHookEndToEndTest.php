@@ -8,6 +8,7 @@ use Osmium\Core\Library\StoreFinance;
 use Osmium\Modules\Checkout\Models\CheckoutBasket;
 use Osmium\Modules\Checkout\Models\CheckoutOrder;
 use Osmium\Modules\Checkout\Services\CheckoutBasketService;
+use Osmium\Modules\Checkout\Services\ShopOrderException;
 use Osmium\Modules\Checkout\Services\ShopOrderService;
 use Osmium\Modules\Checkout\Services\ShopTotalsService;
 use Osmium\Services\StockControl\Models\StockLevels;
@@ -133,5 +134,85 @@ class StockHookEndToEndTest extends DatabaseTestCase
         $this->pendingOrder($product, 3);
 
         $this->assertSame(10, $this->levels->get($product));
+    }
+
+    // ── vetoes ──────────────────────────────────────────────────────────────
+
+    public function test_adding_more_than_the_shelf_holds_is_refused_with_the_number_left(): void
+    {
+        $product = $this->createTestProduct();
+        $this->levels->set($product, 2);
+        $basketId = $this->baskets->getOrCreateBasket('stock-e2e-' . \uniqid());
+
+        $this->expectException(ShopOrderException::class);
+        $this->expectExceptionMessage('Only 2 in stock');
+
+        $this->baskets->addLine(basketId: $basketId, productId: $product, quantity: 3);
+    }
+
+    public function test_adding_up_to_the_shelf_is_allowed(): void
+    {
+        $product = $this->createTestProduct();
+        $this->levels->set($product, 2);
+        $basketId = $this->baskets->getOrCreateBasket('stock-e2e-' . \uniqid());
+
+        $this->baskets->addLine(basketId: $basketId, productId: $product, quantity: 2);
+
+        $this->assertCount(expectedCount: 1, haystack: $this->baskets->getLines($basketId));
+    }
+
+    public function test_a_kit_is_refused_when_its_chosen_part_is_short(): void
+    {
+        $battery = $this->createTestProduct();
+        [$kit, $batteryOption] = $this->kitWithBatteryOption($battery);
+        $this->levels->set($battery, 1);
+        $basketId = $this->baskets->getOrCreateBasket('stock-e2e-' . \uniqid());
+
+        $this->expectException(ShopOrderException::class);
+        $this->expectExceptionMessage('Only 1 in stock');
+
+        $this->baskets->addLine(basketId: $basketId, productId: $kit, quantity: 2, optionValueIds: [$batteryOption]);
+    }
+
+    public function test_a_product_is_counted_across_lines_when_it_is_also_a_kit_part(): void
+    {
+        $battery = $this->createTestProduct();
+        [$kit, $batteryOption] = $this->kitWithBatteryOption($battery);
+        $this->levels->set($battery, 2);
+        $basketId = $this->baskets->getOrCreateBasket('stock-e2e-' . \uniqid());
+        $this->baskets->addLine(basketId: $basketId, productId: $kit, quantity: 1, optionValueIds: [$batteryOption]);
+
+        $this->expectException(ShopOrderException::class);
+
+        $this->baskets->addLine(basketId: $basketId, productId: $battery, quantity: 2);
+    }
+
+    public function test_untracked_products_are_never_refused(): void
+    {
+        $product = $this->createTestProduct();
+        $basketId = $this->baskets->getOrCreateBasket('stock-e2e-' . \uniqid());
+
+        $this->baskets->addLine(basketId: $basketId, productId: $product, quantity: 500);
+
+        $this->assertCount(expectedCount: 1, haystack: $this->baskets->getLines($basketId));
+    }
+
+    public function test_checkout_is_refused_when_stock_fell_after_the_basket_was_filled(): void
+    {
+        $product = $this->createTestProduct();
+        $this->levels->set($product, 5);
+        $basketId = $this->baskets->getOrCreateBasket('stock-e2e-' . \uniqid());
+        $this->baskets->addLine(basketId: $basketId, productId: $product, quantity: 4);
+        $this->levels->set($product, 1);
+
+        $this->expectException(ShopOrderException::class);
+        $this->expectExceptionMessage('Only 1 in stock');
+
+        $this->orders->createPendingOrder(
+            basketId: $basketId,
+            customer: ['customer_name' => 'T', 'customer_email' => 't@example.com', 'delivery_address1' => '1 St', 'delivery_city' => 'Bristol', 'delivery_postcode' => 'BS1 1AA'],
+            ipAddress: '127.0.0.1',
+            userAgent: 'PHPUnit',
+        );
     }
 }

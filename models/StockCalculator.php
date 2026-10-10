@@ -34,6 +34,29 @@ class StockCalculator
     }
 
     /**
+     * The products that want more than the shelf holds, with how many are there.
+     * A product with no figure is not tracked, so it is never short.
+     *
+     * @param array<int, int> $units Units wanted by product id
+     * @param array<int, ?int> $onHand Shelf quantity by product id, null or missing when not tracked
+     * @return array<int, int> Available units by product id, only for the products that are short
+     */
+    public function shortages(array $units, array $onHand): array
+    {
+        $short = [];
+
+        foreach ($units as $productId => $wanted) {
+            $shelf = $onHand[$productId] ?? null;
+            $isTracked = $shelf !== null;
+            $available = \max(0, (int)$shelf);
+            $isShort = $isTracked && $wanted > $available;
+            if ($isShort) $short[$productId] = $available;
+        }
+
+        return $short;
+    }
+
+    /**
      * Take stock off the shelf without ever going below zero. The shelf is
      * never made negative: whatever it could not cover is reported as a shortfall.
      *
