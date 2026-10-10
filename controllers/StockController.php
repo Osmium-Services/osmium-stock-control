@@ -35,6 +35,7 @@ class StockController extends AdminController
 
         $this->data['admin']['isAdmin'] = $this->isAdmin();
         $selectedOrdering = (string) $this->osmium->getStashedParam(key: 'ordering', default: '');
+        $this->osmium->clearStashedQuerystring(); // Or the filter would stay on after choosing All
         $products = \array_map($this->formatProduct(...), $levels->listProducts());
         $onlyReorder = $selectedOrdering === 'reorder';
         if ($onlyReorder) $products = \array_values(\array_filter($products, static fn(array $product): bool => $product['stock_state'] === 'reorder'));
