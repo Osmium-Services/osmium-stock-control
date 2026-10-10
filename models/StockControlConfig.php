@@ -49,6 +49,48 @@ class StockControlConfig
         ];
     }
 
+    /**
+     * The settings file's new text: its PHP guard line and any other settings are kept
+     *
+     * @param string|null $existing The file's current text, or null when there is none
+     */
+    public static function toContent(?string $existing, ?int $inStockStatusId, ?int $outOfStockStatusId): string
+    {
+        $jsonStart = $existing === null ? false : \strpos(haystack: $existing, needle: '{');
+        $header = $jsonStart === false ? "<?php exit(); ?>\n" : \substr(string: $existing, offset: 0, length: $jsonStart);
+        $decoded = $jsonStart === false ? [] : \json_decode(\substr(string: $existing, offset: $jsonStart), associative: true);
+        $data = \is_array($decoded) ? $decoded : [];
+
+        $data['stockControl'] = ['inStockStatusId' => $inStockStatusId, 'outOfStockStatusId' => $outOfStockStatusId];
+
+        $json = \json_encode(value: $data, flags: JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $header . $json . "\n";
+    }
+
+    /**
+     * What is wrong with the chosen statuses, or null when they can be saved
+     *
+     * @param array{product_available: int}|null $inStock The chosen in-stock status row, null when none chosen
+     * @param array{product_available: int}|null $outOfStock The chosen out-of-stock status row, null when none chosen
+     */
+    public static function problem(?array $inStock, ?array $outOfStock): ?string
+    {
+        $chosenNeither = $inStock === null && $outOfStock === null;
+        if ($chosenNeither) return null;
+
+        $missingOne = $inStock === null || $outOfStock === null;
+        if ($missingOne) return 'Choose both statuses, or neither';
+
+        $inStockUnavailable = (int)$inStock['product_available'] !== 1;
+        if ($inStockUnavailable) return 'The in-stock status must be one that allows buying';
+
+        $outOfStockAvailable = (int)$outOfStock['product_available'] === 1;
+        if ($outOfStockAvailable) return 'The out-of-stock status must be one that does not allow buying';
+
+        return null;
+    }
+
     private static function statusId(mixed $value): ?int
     {
         $id = \is_numeric($value) ? (int)$value : 0;

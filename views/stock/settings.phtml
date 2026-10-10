@@ -1,0 +1,69 @@
+<?php
+$config = $admin['stockConfig'];
+$option = function (array $status, ?int $selectedId): string {
+    $isSelected = (int) $status['id'] === $selectedId;
+
+    return '<option value="' . (int) $status['id'] . '"' . ($isSelected ? ' selected' : '') . '>'
+        . \htmlspecialchars((string) $status['descr_short']) . '</option>';
+};
+?>
+<div class="d-flex justify-content-between align-items-center py-3 mb-4">
+    <h4 class="mb-0">
+        <span class="text-muted fw-light">Shop / Stock /</span> Settings
+    </h4>
+    <button type="submit" form="settings-form" class="btn btn-primary">
+        <i class="bx bx-save me-1"></i> Save Settings
+    </button>
+</div>
+
+<?php if ($admin['settingsSaved']): ?>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        Settings saved successfully!
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
+<?php if ($admin['settingsError'] ?? false): ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <?= \htmlspecialchars($admin['settingsError']) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
+<form method="POST" action="<?= $admin['basePath'] ?>settings/stock-control/" id="settings-form">
+    <input type="hidden" name="token" value="<?= $template['formToken'] ?? '' ?>">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bx bx-package me-2"></i>Product statuses</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">When a tracked product runs out, it moves to the out-of-stock status. When stock arrives it moves back, but only if it is still on the out-of-stock status, so a pre-order or discontinued product is never overwritten. Until both are chosen, stock is counted but statuses are never changed.</p>
+
+                    <div class="mb-3">
+                        <label for="in_stock_status_id" class="form-label fw-semibold">In stock status</label>
+                        <select class="form-select" id="in_stock_status_id" name="in_stock_status_id">
+                            <option value="0">Not chosen</option>
+                            <?php foreach ($admin['stockStatuses'] as $status): ?>
+                                <?= $option($status, $config['inStockStatusId']) ?>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">A status that allows buying.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="out_of_stock_status_id" class="form-label fw-semibold">Out of stock status</label>
+                        <select class="form-select" id="out_of_stock_status_id" name="out_of_stock_status_id">
+                            <option value="0">Not chosen</option>
+                            <?php foreach ($admin['stockStatuses'] as $status): ?>
+                                <?= $option($status, $config['outOfStockStatusId']) ?>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">A status that does not allow buying.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

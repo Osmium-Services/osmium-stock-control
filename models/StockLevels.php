@@ -71,6 +71,16 @@ class StockLevels extends Model
         return $row === false ? null : (int)$row['status_id'];
     }
 
+    /**
+     * Every product status, buyable ones first
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listStatuses(): array
+    {
+        return $this->database->prepare(sql: $this->loadSqlFile('product-status-list.sql'))->resultset();
+    }
+
     public function setProductStatus(int $productId, int $statusId): void
     {
         $this->database->prepare(

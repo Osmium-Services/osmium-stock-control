@@ -40,6 +40,14 @@
                     "route": "admin/stock",
                     "activePattern": "admin/stock*",
                     "role": null
+                },
+                {
+                    "id": "stock-settings",
+                    "label": "Stock Settings",
+                    "icon": "bx bx-cog",
+                    "route": "admin/settings/stock-control",
+                    "activePattern": "admin/settings/stock-control",
+                    "role": null
                 }
             ]
         },
@@ -60,6 +68,12 @@
                 "controller": "controllers/StockController.php",
                 "class": "Osmium\\Services\\StockControl\\Controllers\\StockController",
                 "method": "action"
+            },
+            "admin/settings/stock-control": {
+                "controller": "controllers/StockSettingsController.php",
+                "class": "Osmium\\Services\\StockControl\\Controllers\\StockSettingsController",
+                "method": "index",
+                "title": "Stock Settings"
             }
         }
     }
