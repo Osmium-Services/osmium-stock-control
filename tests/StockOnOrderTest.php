@@ -67,4 +67,27 @@ final class StockOnOrderTest extends TestCase
             $this->assertFalse(StockOnOrder::isValidDate($bad), $bad);
         }
     }
+
+    public function test_a_year_month_day_date_is_kept(): void
+    {
+        $this->assertSame('2026-11-12', StockOnOrder::normaliseDate('2026-11-12'));
+    }
+
+    public function test_a_uk_day_month_year_date_is_converted(): void
+    {
+        $this->assertSame('2026-11-12', StockOnOrder::normaliseDate('12/11/2026'));
+        $this->assertSame('2026-01-05', StockOnOrder::normaliseDate('5/1/2026'));
+    }
+
+    public function test_spaces_around_a_date_are_ignored(): void
+    {
+        $this->assertSame('2026-11-12', StockOnOrder::normaliseDate(' 12/11/2026 '));
+    }
+
+    public function test_dates_that_cannot_be_read_give_null(): void
+    {
+        foreach (['2026-02-30', '31/02/2026', '13/13/2026', 'soon', '12-11-2026', '12/11/26', '2026/11/12', ''] as $bad) {
+            $this->assertNull(StockOnOrder::normaliseDate($bad), $bad);
+        }
+    }
 }

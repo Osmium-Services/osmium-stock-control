@@ -47,12 +47,15 @@ class StockCsvImport
         $hasError = isset($row['error']);
         if ($hasError) return "Row {$line}: {$row['error']}";
 
-        $nothingToDo = $row['quantity'] === null && $row['reorder'] === null;
+        $nothingToDo = $row['quantity'] === null && $row['reorder'] === null && $row['onOrder'] === null && $row['expected'] === null;
         if ($nothingToDo) return 'skipped';
 
         $current = $this->levels->get($row['id']);
         $levelOnlyForUntracked = $row['quantity'] === null && $current === null;
         if ($levelOnlyForUntracked) return "Row {$line}: Product ID {$row['id']} is not tracked yet: give it an In stock figure as well";
+
+        $dateWithoutUnits = $this->dateWithoutUnits($row);
+        if ($dateWithoutUnits) return "Row {$line}: Product ID {$row['id']} has nothing on order, so it cannot have an expected date";
 
         try {
             $changed = $this->applyChanges($row, $current);
@@ -80,6 +83,45 @@ class StockCsvImport
             $changed = true;
         }
 
-        return $changed;
+        $onOrderChanges = $this->applyOnOrder($row);
+
+        return $changed || $onOrderChanges;
+    }
+
+    /** Whether an expected date was given for a product that will have no units on order */
+    private function dateWithoutUnits(array $row): bool
+    {
+        $noDate = $row['expected'] === null;
+        if ($noDate) return false;
+
+        $units = $row['onOrder'] ?? $this->levels->onOrderQuantity($row['id']);
+
+        return $units === null || $units === 0;
+    }
+
+    /** @return bool Whether the on-order figures changed */
+    private function applyOnOrder(array $row): bool
+    {
+        $nothingGiven = $row['onOrder'] === null && $row['expected'] === null;
+        if ($nothingGiven) return false;
+
+        $current = $this->levels->onOrder($row['id']);
+        $units = $row['onOrder'] ?? $current['quantity'];
+        $date = $row['expected'] ?? $current['expectedAt'];
+
+        $clears = $units === 0;
+        if ($clears) {
+            $hadSomething = $current['quantity'] !== null;
+            if ($hadSomething) $this->adjustment->setOnOrder(productId: $row['id'], quantity: null, expectedAt: null);
+
+            return $hadSomething;
+        }
+
+        $same = $units === $current['quantity'] && $date === $current['expectedAt'];
+        if ($same) return false;
+
+        $this->adjustment->setOnOrder(productId: $row['id'], quantity: $units, expectedAt: $date);
+
+        return true;
     }
 }

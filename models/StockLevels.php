@@ -42,6 +42,16 @@ class StockLevels extends Model
     /** Units on order for a tracked product, or null when none are (or it is not tracked) */
     public function onOrderQuantity(int $productId): ?int
     {
+        return $this->onOrder($productId)['quantity'];
+    }
+
+    /**
+     * What is on order for a tracked product
+     *
+     * @return array{quantity: ?int, expectedAt: ?string} Both null when nothing is on order (or it is not tracked)
+     */
+    public function onOrder(int $productId): array
+    {
         $row = $this->database->prepare(
             sql: $this->loadSqlFile('stock-level-get-on-order.sql'),
             bindings: [':product_id' => $productId],
@@ -49,7 +59,10 @@ class StockLevels extends Model
 
         $hasUnits = $row !== false && $row['on_order_qty'] !== null;
 
-        return $hasUnits ? (int) $row['on_order_qty'] : null;
+        return [
+            'quantity' => $hasUnits ? (int) $row['on_order_qty'] : null,
+            'expectedAt' => $hasUnits && $row['expected_at'] !== null ? (string) $row['expected_at'] : null,
+        ];
     }
 
     /** Like get(), but locks the row until the transaction ends */

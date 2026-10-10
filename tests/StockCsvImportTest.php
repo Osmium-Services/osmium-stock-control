@@ -222,6 +222,153 @@ class StockCsvImportTest extends DatabaseTestCase
         $this->assertCount(expectedCount: 1, haystack: $result['errors']);
     }
 
+    // ── on order ────────────────────────────────────────────────────────────
+
+    private function onOrderOf(int $productId): array
+    {
+        foreach ($this->levels->listProducts() as $row) {
+            $isWanted = (int) $row['id'] === $productId;
+            if ($isWanted) return [$row['on_order_qty'] === null ? null : (int) $row['on_order_qty'], $row['expected_at']];
+        }
+
+        return [null, null];
+    }
+
+    private function trackedProduct(int $quantity = 10): int
+    {
+        $product = $this->product();
+        $this->levels->set($product, $quantity);
+
+        return $product;
+    }
+
+    public function test_units_on_order_and_a_date_are_set(): void
+    {
+        $product = $this->trackedProduct();
+
+        $result = $this->import("ID,In stock,On order,Expected date\n{$product},10,12,2026-11-12\n");
+
+        $this->assertSame([12, '2026-11-12'], $this->onOrderOf($product));
+        $this->assertSame(1, $result['updated']);
+    }
+
+    public function test_an_excel_style_uk_date_is_stored_as_a_real_date(): void
+    {
+        $product = $this->trackedProduct();
+
+        $this->import("ID,In stock,On order,Expected date\n{$product},10,12,12/11/2026\n");
+
+        $this->assertSame([12, '2026-11-12'], $this->onOrderOf($product));
+    }
+
+    public function test_units_without_a_date_leave_an_existing_date_alone(): void
+    {
+        $product = $this->trackedProduct();
+        $this->levels->setOnOrder($product, 5, '2026-11-12');
+
+        $this->import("ID,In stock,On order,Expected date\n{$product},10,9,\n");
+
+        $this->assertSame([9, '2026-11-12'], $this->onOrderOf($product));
+    }
+
+    public function test_a_date_alone_moves_the_date_of_what_is_already_on_order(): void
+    {
+        $product = $this->trackedProduct();
+        $this->levels->setOnOrder($product, 5, '2026-11-12');
+
+        $this->import("ID,In stock,On order,Expected date\n{$product},10,,2026-12-01\n");
+
+        $this->assertSame([5, '2026-12-01'], $this->onOrderOf($product));
+    }
+
+    public function test_a_date_with_nothing_on_order_is_an_error_and_changes_nothing(): void
+    {
+        $product = $this->trackedProduct();
+
+        $result = $this->import("ID,In stock,On order,Expected date\n{$product},10,,2026-12-01\n");
+
+        $this->assertSame([null, null], $this->onOrderOf($product));
+        $this->assertSame(["Row 2: Product ID {$product} has nothing on order, so it cannot have an expected date"], $result['errors']);
+    }
+
+    public function test_zero_on_order_clears_what_was_on_order_and_its_date(): void
+    {
+        $product = $this->trackedProduct();
+        $this->levels->setOnOrder($product, 5, '2026-11-12');
+
+        $this->import("ID,In stock,On order\n{$product},10,0\n");
+
+        $this->assertSame([null, null], $this->onOrderOf($product));
+    }
+
+    public function test_zero_on_order_when_nothing_is_on_order_is_unchanged(): void
+    {
+        $product = $this->trackedProduct();
+
+        $result = $this->import("ID,In stock,On order\n{$product},10,0\n");
+
+        $this->assertSame([0, 1], [$result['updated'], $result['unchanged']]);
+    }
+
+    public function test_blank_on_order_cells_leave_what_is_on_order_alone(): void
+    {
+        $product = $this->trackedProduct();
+        $this->levels->setOnOrder($product, 5, '2026-11-12');
+
+        $this->import("ID,In stock,On order,Expected date\n{$product},10,,\n");
+
+        $this->assertSame([5, '2026-11-12'], $this->onOrderOf($product));
+    }
+
+    public function test_the_same_on_order_figures_count_as_unchanged(): void
+    {
+        $product = $this->trackedProduct();
+        $this->levels->setOnOrder($product, 5, '2026-11-12');
+
+        $result = $this->import("ID,In stock,On order,Expected date\n{$product},10,5,2026-11-12\n");
+
+        $this->assertSame([0, 1], [$result['updated'], $result['unchanged']]);
+    }
+
+    public function test_on_order_for_a_product_that_is_not_tracked_is_an_error(): void
+    {
+        $product = $this->product();
+
+        $result = $this->import("ID,In stock,On order\n{$product},,5\n");
+
+        $this->assertNull($this->levels->get($product));
+        $this->assertCount(expectedCount: 1, haystack: $result['errors']);
+    }
+
+    public function test_a_figure_and_units_on_order_together_start_tracking_with_both(): void
+    {
+        $product = $this->product();
+
+        $this->import("ID,In stock,On order,Expected date\n{$product},3,8,2026-11-12\n");
+
+        $this->assertSame(3, $this->levels->get($product));
+        $this->assertSame([8, '2026-11-12'], $this->onOrderOf($product));
+    }
+
+    public function test_a_bad_date_leaves_the_whole_row_untouched(): void
+    {
+        $product = $this->trackedProduct();
+
+        $result = $this->import("ID,In stock,On order,Expected date\n{$product},99,8,soon\n");
+
+        $this->assertSame(10, $this->levels->get($product));
+        $this->assertCount(expectedCount: 1, haystack: $result['errors']);
+    }
+
+    public function test_changing_only_on_order_writes_no_stock_movement(): void
+    {
+        $product = $this->trackedProduct();
+
+        $this->import("ID,In stock,On order\n{$product},10,4\n");
+
+        $this->assertSame([], $this->movements($product));
+    }
+
     public function test_zero_moves_the_product_to_out_of_stock(): void
     {
         $product = $this->product();

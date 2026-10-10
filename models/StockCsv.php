@@ -11,7 +11,7 @@ namespace Osmium\Services\StockControl\Models;
 class StockCsv
 {
     private const BOM = "\xEF\xBB\xBF";
-    private const HEADER = ['ID', 'Brand', 'Model', 'Reference', 'Status', 'In stock', 'Reorder at'];
+    private const HEADER = ['ID', 'Brand', 'Model', 'Reference', 'Status', 'In stock', 'Reorder at', 'On order', 'Expected date'];
 
     /**
      * @param array<int, array<string, mixed>> $products As StockLevels::listProducts() returns them
@@ -24,9 +24,11 @@ class StockCsv
         foreach ($products as $product) {
             $quantity = $product['quantity'] === null ? '' : (int) $product['quantity'];
             $reorder = ($product['reorder_level'] ?? null) === null ? '' : (int) $product['reorder_level'];
+            $onOrder = ($product['on_order_qty'] ?? null) === null ? '' : (int) $product['on_order_qty'];
+            $expected = (string) ($product['expected_at'] ?? '');
             \fputcsv(
                 stream: $stream,
-                fields: [(int) $product['id'], $product['brand_name'], $product['model_name'], $product['reference'], $product['status_label'], $quantity, $reorder],
+                fields: [(int) $product['id'], $product['brand_name'], $product['model_name'], $product['reference'], $product['status_label'], $quantity, $reorder, $onOrder, $expected],
                 escape: '\\',
             );
         }
@@ -37,7 +39,7 @@ class StockCsv
     }
 
     /**
-     * @return array{error: ?string, rows: array<int, array{line: int, id: int, quantity: ?int, reorder: ?int}|array{line: int, id: int, error: string}>}
+     * @return array{error: ?string, rows: array<int, array{line: int, id: int, quantity: ?int, reorder: ?int, onOrder: ?int, expected: ?string}|array{line: int, id: int, error: string}>}
      *         One entry per data row. quantity or reorder null means the cell was blank (or the column is missing): leave that alone.
      */
     public static function parse(string $content): array
@@ -72,7 +74,7 @@ class StockCsv
         return ['error' => null, 'rows' => $rows];
     }
 
-    /** @return array{id: int|false, quantity: int|false, reorder: int|false}|null null when the line is not a header at all */
+    /** @return array{id: int|false, quantity: int|false, reorder: int|false, onOrder: int|false, expected: int|false}|null null when the line is not a header at all */
     private static function columnsOf(array $header): ?array
     {
         $names = \array_map(static fn(?string $name): string => \trim((string) $name), $header);
@@ -84,7 +86,10 @@ class StockCsv
 
         $reorder = \array_search('Reorder at', $names, true);
 
-        return ['id' => $id, 'quantity' => $quantity, 'reorder' => $reorder];
+        $onOrder = \array_search('On order', $names, true);
+        $expected = \array_search('Expected date', $names, true);
+
+        return ['id' => $id, 'quantity' => $quantity, 'reorder' => $reorder, 'onOrder' => $onOrder, 'expected' => $expected];
     }
 
     private static function readRow(array $cells, array $columns, int $line): array
@@ -92,6 +97,8 @@ class StockCsv
         $rawId = \trim((string) ($cells[$columns['id']] ?? ''));
         $rawQuantity = \trim((string) ($cells[$columns['quantity']] ?? ''));
         $rawReorder = $columns['reorder'] === false ? '' : \trim((string) ($cells[$columns['reorder']] ?? ''));
+        $rawOnOrder = $columns['onOrder'] === false ? '' : \trim((string) ($cells[$columns['onOrder']] ?? ''));
+        $rawExpected = $columns['expected'] === false ? '' : \trim((string) ($cells[$columns['expected']] ?? ''));
 
         $idValid = \preg_match('/^[1-9]\d{0,9}$/', $rawId) === 1;
         if (!$idValid) return ['line' => $line, 'id' => 0, 'error' => "'{$rawId}' is not a valid product ID"];
@@ -103,11 +110,20 @@ class StockCsv
         $reorderBad = $rawReorder !== '' && \preg_match('/^\d{1,9}$/', $rawReorder) !== 1;
         if ($reorderBad) return ['line' => $line, 'id' => $id, 'error' => "'{$rawReorder}' is not a whole number, zero or more, for Reorder at"];
 
+        $onOrderBad = $rawOnOrder !== '' && \preg_match('/^\d{1,9}$/', $rawOnOrder) !== 1;
+        if ($onOrderBad) return ['line' => $line, 'id' => $id, 'error' => "'{$rawOnOrder}' is not a whole number, zero or more, for On order"];
+
+        $expected = $rawExpected === '' ? null : StockOnOrder::normaliseDate($rawExpected);
+        $expectedBad = $rawExpected !== '' && $expected === null;
+        if ($expectedBad) return ['line' => $line, 'id' => $id, 'error' => "'{$rawExpected}' is not a date: use YYYY-MM-DD or DD/MM/YYYY, for Expected date"];
+
         return [
             'line' => $line,
             'id' => $id,
             'quantity' => $rawQuantity === '' ? null : (int) $rawQuantity,
             'reorder' => $rawReorder === '' ? null : (int) $rawReorder,
+            'onOrder' => $rawOnOrder === '' ? null : (int) $rawOnOrder,
+            'expected' => $expected,
         ];
     }
 }

@@ -77,7 +77,7 @@ $isDone = $results && $results['error'] === null;
                 <label for="csv_file" class="form-label fw-semibold">CSV File</label>
                 <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
                 <div class="form-text">
-                    Upload a CSV exported from this page with updated figures. Only the <strong>In stock</strong> and <strong>Reorder at</strong> columns are imported. Max file size: <?= \htmlspecialchars($admin['maxImportSize']) ?>.
+                    Upload a CSV exported from this page with updated figures. Only the <strong>In stock</strong>, <strong>Reorder at</strong>, <strong>On order</strong> and <strong>Expected date</strong> columns are imported. Max file size: <?= \htmlspecialchars($admin['maxImportSize']) ?>.
                 </div>
             </div>
             <button type="submit" class="btn btn-primary">
@@ -95,13 +95,14 @@ $isDone = $results && $results['error'] === null;
         <ol class="mb-3">
             <li>First, <a href="<?= $adminUrl('stock/export/') ?>">export the current stock list</a> as CSV</li>
             <li>Open the CSV in Excel or Google Sheets</li>
-            <li>Change the <strong>In stock</strong> and/or <strong>Reorder at</strong> columns</li>
+            <li>Change the <strong>In stock</strong>, <strong>Reorder at</strong>, <strong>On order</strong> and/or <strong>Expected date</strong> columns</li>
             <li>Save as CSV and upload here</li>
         </ol>
         <ul class="mb-0">
             <li>A number sets that product's stock. A product that was not tracked starts being tracked.</li>
             <li>Leave <strong>In stock</strong> blank to leave a product alone. Use 0 for "none left".</li>
             <li><strong>Reorder at</strong> is the figure at or below which a product shows up for reordering. A number sets it, a blank leaves it as it is, and a product must have an In stock figure before it can have one. To remove a level, use the Set stock page.</li>
+            <li><strong>On order</strong> is the units ordered from your supplier and not yet received, and <strong>Expected date</strong> is when they are due. Write the date as 2026-11-12 or 12/11/2026. A blank leaves it as it is, and 0 on order clears it. A date needs units on order. This is for your information in the admin and does not change what customers see.</li>
             <li>Products are matched by <strong>ID</strong>, so do not change that column.</li>
             <li>Each change is recorded in the stock history, and a product at 0 moves to the out-of-stock status.</li>
             <li>Rows with the same figure are skipped. A bad row is reported and the rest still apply.</li>

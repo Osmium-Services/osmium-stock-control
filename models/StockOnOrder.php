@@ -28,6 +28,21 @@ class StockOnOrder
         return ['label' => "{$quantity} due " . $date->format('j M Y'), 'state' => $overdue ? 'overdue' : 'due'];
     }
 
+    /**
+     * Read a date from a spreadsheet: Y-m-d, or the UK day/month/year Excel turns it into.
+     *
+     * @return string|null The date as Y-m-d, or null when it is not a real date in either form
+     */
+    public static function normaliseDate(string $text): ?string
+    {
+        $text = \trim($text);
+
+        $isUk = \preg_match('#^(\d{1,2})/(\d{1,2})/(\d{4})$#', $text, $parts) === 1;
+        $date = $isUk ? \sprintf('%04d-%02d-%02d', $parts[3], $parts[2], $parts[1]) : $text;
+
+        return self::isValidDate($date) ? $date : null;
+    }
+
     /** A real calendar date written exactly as Y-m-d */
     public static function isValidDate(string $date): bool
     {
