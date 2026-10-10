@@ -26,6 +26,19 @@ class StockLevels extends Model
         return $this->read('stock-level-get.sql', $productId);
     }
 
+    /** The reorder level of a tracked product, or null when it has none (or is not tracked) */
+    public function reorderLevel(int $productId): ?int
+    {
+        $row = $this->database->prepare(
+            sql: $this->loadSqlFile('stock-level-get-reorder.sql'),
+            bindings: [':product_id' => $productId],
+        )->single();
+
+        $hasLevel = $row !== false && $row['reorder_level'] !== null;
+
+        return $hasLevel ? (int) $row['reorder_level'] : null;
+    }
+
     /** Like get(), but locks the row until the transaction ends */
     public function getForUpdate(int $productId): ?int
     {

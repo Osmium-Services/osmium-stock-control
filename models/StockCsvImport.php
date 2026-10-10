@@ -47,19 +47,39 @@ class StockCsvImport
         $hasError = isset($row['error']);
         if ($hasError) return "Row {$line}: {$row['error']}";
 
-        $isBlank = $row['quantity'] === null;
-        if ($isBlank) return 'skipped';
+        $nothingToDo = $row['quantity'] === null && $row['reorder'] === null;
+        if ($nothingToDo) return 'skipped';
 
         $current = $this->levels->get($row['id']);
-        $isUnchanged = $current === $row['quantity'];
-        if ($isUnchanged) return 'unchanged';
+        $levelOnlyForUntracked = $row['quantity'] === null && $current === null;
+        if ($levelOnlyForUntracked) return "Row {$line}: Product ID {$row['id']} is not tracked yet: give it an In stock figure as well";
 
         try {
-            $this->adjustment->set(productId: $row['id'], quantity: $row['quantity'], note: self::NOTE);
+            $changed = $this->applyChanges($row, $current);
         } catch (\InvalidArgumentException $e) {
             return "Row {$line}: Product ID {$row['id']} not found";
         }
 
-        return 'updated';
+        return $changed ? 'updated' : 'unchanged';
+    }
+
+    /** @return bool Whether anything was changed */
+    private function applyChanges(array $row, ?int $current): bool
+    {
+        $changed = false;
+
+        $quantityChanges = $row['quantity'] !== null && $current !== $row['quantity'];
+        if ($quantityChanges) {
+            $this->adjustment->set(productId: $row['id'], quantity: $row['quantity'], note: self::NOTE);
+            $changed = true;
+        }
+
+        $levelChanges = $row['reorder'] !== null && $this->levels->reorderLevel($row['id']) !== $row['reorder'];
+        if ($levelChanges) {
+            $this->adjustment->setReorderLevel(productId: $row['id'], level: $row['reorder']);
+            $changed = true;
+        }
+
+        return $changed;
     }
 }

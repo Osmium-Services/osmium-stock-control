@@ -17,9 +17,9 @@ final class StockCsvTest extends TestCase
 {
     private const BOM = "\xEF\xBB\xBF";
 
-    private function product(int $id, ?int $quantity, string $brand = 'Acme', string $model = 'Panel', string $reference = '', string $status = 'In stock'): array
+    private function product(int $id, ?int $quantity, string $brand = 'Acme', string $model = 'Panel', string $reference = '', string $status = 'In stock', ?int $reorder = null): array
     {
-        return ['id' => $id, 'brand_name' => $brand, 'model_name' => $model, 'reference' => $reference, 'status_label' => $status, 'quantity' => $quantity];
+        return ['id' => $id, 'brand_name' => $brand, 'model_name' => $model, 'reference' => $reference, 'status_label' => $status, 'quantity' => $quantity, 'reorder_level' => $reorder];
     }
 
     // ── export ──────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ final class StockCsvTest extends TestCase
     {
         $csv = StockCsv::export([]);
 
-        $this->assertStringStartsWith(self::BOM . "ID,Brand,Model,Reference,Status,\"In stock\"\n", $csv);
+        $this->assertStringStartsWith(self::BOM . "ID,Brand,Model,Reference,Status,\"In stock\",\"Reorder at\"\n", $csv);
     }
 
     public function test_the_export_writes_the_figure_and_leaves_untracked_blank(): void
@@ -36,15 +36,15 @@ final class StockCsvTest extends TestCase
         $csv = StockCsv::export([$this->product(5, 12), $this->product(6, null)]);
 
         $lines = \explode("\n", \trim(\substr($csv, 3)));
-        $this->assertSame('5,Acme,Panel,,"In stock",12', $lines[1]);
-        $this->assertSame('6,Acme,Panel,,"In stock",', $lines[2]);
+        $this->assertSame('5,Acme,Panel,,"In stock",12,', $lines[1]);
+        $this->assertSame('6,Acme,Panel,,"In stock",,', $lines[2]);
     }
 
     public function test_a_zero_figure_is_exported_as_zero_not_blank(): void
     {
         $csv = StockCsv::export([$this->product(5, 0)]);
 
-        $this->assertStringContainsString(',0' . "\n", $csv);
+        $this->assertStringContainsString(',0,' . "\n", $csv);
     }
 
     // ── import ──────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ final class StockCsvTest extends TestCase
         $parsed = StockCsv::parse($csv);
 
         $this->assertNull($parsed['error']);
-        $this->assertSame([['line' => 2, 'id' => 5, 'quantity' => 12], ['line' => 3, 'id' => 6, 'quantity' => null]], $parsed['rows']);
+        $this->assertSame([['line' => 2, 'id' => 5, 'quantity' => 12, 'reorder' => null], ['line' => 3, 'id' => 6, 'quantity' => null, 'reorder' => null]], $parsed['rows']);
     }
 
     public function test_a_blank_cell_means_leave_the_product_alone(): void
@@ -137,7 +137,7 @@ final class StockCsvTest extends TestCase
     {
         $parsed = StockCsv::parse("ID,In stock\n 7 , 4 \n");
 
-        $this->assertSame(['line' => 2, 'id' => 7, 'quantity' => 4], $parsed['rows'][0]);
+        $this->assertSame(['line' => 2, 'id' => 7, 'quantity' => 4, 'reorder' => null], $parsed['rows'][0]);
     }
 
     public function test_a_file_with_a_bom_is_read(): void
@@ -146,5 +146,60 @@ final class StockCsvTest extends TestCase
 
         $this->assertNull($parsed['error']);
         $this->assertSame(7, $parsed['rows'][0]['id']);
+    }
+
+    // ── reorder level column ────────────────────────────────────────────────
+
+    public function test_the_export_writes_the_reorder_level_and_leaves_none_blank(): void
+    {
+        $csv = StockCsv::export([$this->product(5, 3, reorder: 10), $this->product(6, 3)]);
+
+        $lines = \explode("\n", \trim(\substr($csv, 3)));
+        $this->assertSame('5,Acme,Panel,,"In stock",3,10', $lines[1]);
+        $this->assertSame('6,Acme,Panel,,"In stock",3,', $lines[2]);
+    }
+
+    public function test_an_export_with_levels_is_read_back(): void
+    {
+        $parsed = StockCsv::parse(StockCsv::export([$this->product(5, 3, reorder: 10)]));
+
+        $this->assertSame([['line' => 2, 'id' => 5, 'quantity' => 3, 'reorder' => 10]], $parsed['rows']);
+    }
+
+    public function test_the_reorder_column_is_optional(): void
+    {
+        $parsed = StockCsv::parse("ID,In stock\n7,4\n");
+
+        $this->assertNull($parsed['error']);
+        $this->assertNull($parsed['rows'][0]['reorder']);
+    }
+
+    public function test_a_blank_reorder_cell_means_leave_the_level_alone(): void
+    {
+        $parsed = StockCsv::parse("ID,In stock,Reorder at\n7,4,\n");
+
+        $this->assertNull($parsed['rows'][0]['reorder']);
+    }
+
+    public function test_a_reorder_level_of_zero_is_a_real_level(): void
+    {
+        $parsed = StockCsv::parse("ID,In stock,Reorder at\n7,4,0\n");
+
+        $this->assertSame(0, $parsed['rows'][0]['reorder']);
+    }
+
+    public function test_a_bad_reorder_level_is_reported_for_its_row(): void
+    {
+        $parsed = StockCsv::parse("ID,In stock,Reorder at\n7,4,lots\n8,4,-1\n9,4,2.5\n");
+
+        foreach ([0, 1, 2] as $index) {
+            $this->assertArrayHasKey('error', $parsed['rows'][$index]);
+        }
+        $this->assertSame("'lots' is not a whole number, zero or more, for Reorder at", $parsed['rows'][0]['error']);
+    }
+
+    public function test_a_file_with_only_a_reorder_column_and_no_in_stock_column_is_still_refused(): void
+    {
+        $this->assertNotNull(StockCsv::parse("ID,Reorder at\n7,4\n")['error']);
     }
 }

@@ -11,7 +11,7 @@ namespace Osmium\Services\StockControl\Models;
 class StockCsv
 {
     private const BOM = "\xEF\xBB\xBF";
-    private const HEADER = ['ID', 'Brand', 'Model', 'Reference', 'Status', 'In stock'];
+    private const HEADER = ['ID', 'Brand', 'Model', 'Reference', 'Status', 'In stock', 'Reorder at'];
 
     /**
      * @param array<int, array<string, mixed>> $products As StockLevels::listProducts() returns them
@@ -23,9 +23,10 @@ class StockCsv
 
         foreach ($products as $product) {
             $quantity = $product['quantity'] === null ? '' : (int) $product['quantity'];
+            $reorder = ($product['reorder_level'] ?? null) === null ? '' : (int) $product['reorder_level'];
             \fputcsv(
                 stream: $stream,
-                fields: [(int) $product['id'], $product['brand_name'], $product['model_name'], $product['reference'], $product['status_label'], $quantity],
+                fields: [(int) $product['id'], $product['brand_name'], $product['model_name'], $product['reference'], $product['status_label'], $quantity, $reorder],
                 escape: '\\',
             );
         }
@@ -36,8 +37,8 @@ class StockCsv
     }
 
     /**
-     * @return array{error: ?string, rows: array<int, array{line: int, id: int, quantity: ?int}|array{line: int, id: int, error: string}>}
-     *         One entry per data row. quantity null means the cell was blank: leave the product alone.
+     * @return array{error: ?string, rows: array<int, array{line: int, id: int, quantity: ?int, reorder: ?int}|array{line: int, id: int, error: string}>}
+     *         One entry per data row. quantity or reorder null means the cell was blank (or the column is missing): leave that alone.
      */
     public static function parse(string $content): array
     {
@@ -71,7 +72,7 @@ class StockCsv
         return ['error' => null, 'rows' => $rows];
     }
 
-    /** @return array{id: int|false, quantity: int|false}|null null when the line is not a header at all */
+    /** @return array{id: int|false, quantity: int|false, reorder: int|false}|null null when the line is not a header at all */
     private static function columnsOf(array $header): ?array
     {
         $names = \array_map(static fn(?string $name): string => \trim((string) $name), $header);
@@ -81,24 +82,32 @@ class StockCsv
         $looksLikeHeader = $id !== false || $quantity !== false;
         if (!$looksLikeHeader) return null;
 
-        return ['id' => $id, 'quantity' => $quantity];
+        $reorder = \array_search('Reorder at', $names, true);
+
+        return ['id' => $id, 'quantity' => $quantity, 'reorder' => $reorder];
     }
 
     private static function readRow(array $cells, array $columns, int $line): array
     {
         $rawId = \trim((string) ($cells[$columns['id']] ?? ''));
         $rawQuantity = \trim((string) ($cells[$columns['quantity']] ?? ''));
+        $rawReorder = $columns['reorder'] === false ? '' : \trim((string) ($cells[$columns['reorder']] ?? ''));
 
         $idValid = \preg_match('/^[1-9]\d{0,9}$/', $rawId) === 1;
         if (!$idValid) return ['line' => $line, 'id' => 0, 'error' => "'{$rawId}' is not a valid product ID"];
 
         $id = (int) $rawId;
-        $isBlank = $rawQuantity === '';
-        if ($isBlank) return ['line' => $line, 'id' => $id, 'quantity' => null];
+        $quantityBad = $rawQuantity !== '' && \preg_match('/^\d{1,9}$/', $rawQuantity) !== 1;
+        if ($quantityBad) return ['line' => $line, 'id' => $id, 'error' => "'{$rawQuantity}' is not a whole number, zero or more"];
 
-        $quantityValid = \preg_match('/^\d{1,9}$/', $rawQuantity) === 1;
-        if (!$quantityValid) return ['line' => $line, 'id' => $id, 'error' => "'{$rawQuantity}' is not a whole number, zero or more"];
+        $reorderBad = $rawReorder !== '' && \preg_match('/^\d{1,9}$/', $rawReorder) !== 1;
+        if ($reorderBad) return ['line' => $line, 'id' => $id, 'error' => "'{$rawReorder}' is not a whole number, zero or more, for Reorder at"];
 
-        return ['line' => $line, 'id' => $id, 'quantity' => (int) $rawQuantity];
+        return [
+            'line' => $line,
+            'id' => $id,
+            'quantity' => $rawQuantity === '' ? null : (int) $rawQuantity,
+            'reorder' => $rawReorder === '' ? null : (int) $rawReorder,
+        ];
     }
 }

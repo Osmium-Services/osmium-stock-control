@@ -135,6 +135,93 @@ class StockCsvImportTest extends DatabaseTestCase
         $this->assertSame(["Row 2: 'lots' is not a whole number, zero or more"], $result['errors']);
     }
 
+    // ── reorder level ───────────────────────────────────────────────────────
+
+    private function levelOf(int $productId): ?int
+    {
+        foreach ($this->levels->listProducts() as $row) {
+            $isWanted = (int) $row['id'] === $productId;
+            if ($isWanted) return $row['reorder_level'] === null ? null : (int) $row['reorder_level'];
+        }
+
+        return null;
+    }
+
+    public function test_a_reorder_level_is_set_for_a_tracked_product(): void
+    {
+        $product = $this->product();
+        $this->levels->set($product, 10);
+
+        $result = $this->import("ID,In stock,Reorder at\n{$product},10,4\n");
+
+        $this->assertSame(4, $this->levelOf($product));
+        $this->assertSame(1, $result['updated']);
+    }
+
+    public function test_a_figure_and_a_level_together_start_tracking_with_both(): void
+    {
+        $product = $this->product();
+
+        $this->import("ID,In stock,Reorder at\n{$product},6,2\n");
+
+        $this->assertSame(6, $this->levels->get($product));
+        $this->assertSame(2, $this->levelOf($product));
+    }
+
+    public function test_a_level_for_a_product_that_is_not_tracked_is_an_error_and_changes_nothing(): void
+    {
+        $product = $this->product();
+
+        $result = $this->import("ID,In stock,Reorder at\n{$product},,5\n");
+
+        $this->assertNull($this->levels->get($product));
+        $this->assertSame(["Row 2: Product ID {$product} is not tracked yet: give it an In stock figure as well"], $result['errors']);
+    }
+
+    public function test_a_blank_level_leaves_an_existing_level_alone(): void
+    {
+        $product = $this->product();
+        $this->levels->set($product, 10);
+        $this->levels->setReorderLevel($product, 4);
+
+        $this->import("ID,In stock,Reorder at\n{$product},7,\n");
+
+        $this->assertSame(4, $this->levelOf($product));
+        $this->assertSame(7, $this->levels->get($product));
+    }
+
+    public function test_the_same_figure_and_level_count_as_unchanged(): void
+    {
+        $product = $this->product();
+        $this->levels->set($product, 10);
+        $this->levels->setReorderLevel($product, 4);
+
+        $result = $this->import("ID,In stock,Reorder at\n{$product},10,4\n");
+
+        $this->assertSame([0, 1], [$result['updated'], $result['unchanged']]);
+    }
+
+    public function test_only_the_level_changing_counts_as_updated_and_writes_no_stock_movement(): void
+    {
+        $product = $this->product();
+        $this->levels->set($product, 10);
+
+        $this->import("ID,In stock,Reorder at\n{$product},10,4\n");
+
+        $this->assertSame([], $this->movements($product));
+    }
+
+    public function test_a_bad_level_leaves_the_row_untouched(): void
+    {
+        $product = $this->product();
+        $this->levels->set($product, 10);
+
+        $result = $this->import("ID,In stock,Reorder at\n{$product},3,lots\n");
+
+        $this->assertSame(10, $this->levels->get($product));
+        $this->assertCount(expectedCount: 1, haystack: $result['errors']);
+    }
+
     public function test_zero_moves_the_product_to_out_of_stock(): void
     {
         $product = $this->product();
