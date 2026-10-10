@@ -32,7 +32,7 @@ return [
                 'type' => 'text',
                 'strong' => true,
                 'fill' => true,
-                'sub' => ['key' => 'reference', 'style' => 'plain'],
+                'sub' => ['key' => 'sub_label', 'style' => 'muted'],
             ],
             ['key' => 'stock_label', 'label' => 'In stock', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'stock_sort'],
             ['key' => 'reorder_label', 'label' => 'Reorder at', 'type' => 'text', 'nowrap' => true, 'sortKey' => 'reorder_label'],

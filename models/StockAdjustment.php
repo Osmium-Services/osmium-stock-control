@@ -41,10 +41,7 @@ class StockAdjustment
         $this->inTransaction(function () use ($productId, $quantity, $note): void {
             $before = $this->levels->getForUpdate($productId);
             $isUnchanged = $before === $quantity;
-            if ($isUnchanged) {
-                $this->recordNoteOnly(productId: $productId, note: $note);
-                return;
-            }
+            if ($isUnchanged) return;
 
             $this->levels->set($productId, $quantity);
             $this->record(productId: $productId, change: $quantity - ($before ?? 0), note: $note);
@@ -120,6 +117,33 @@ class StockAdjustment
         return $units;
     }
 
+    /**
+     * Keep a lasting note with the product, shown whenever its stock is edited. A blank note clears it.
+     * A changed note is also recorded in the history, as an entry that moved no stock.
+     *
+     * @throws \InvalidArgumentException For a product that is not tracked yet, or a note over 255 characters
+     */
+    public function setNote(int $productId, ?string $note): void
+    {
+        $untracked = $this->levels->get($productId) === null;
+        if ($untracked) throw new \InvalidArgumentException('Set a stock figure first: only tracked products can have a note');
+
+        $note = $note === null ? '' : \trim($note);
+        $tooLong = \mb_strlen($note) > 255;
+        if ($tooLong) throw new \InvalidArgumentException('A note can be up to 255 characters');
+
+        $newNote = $note === '' ? null : $note;
+        $oldNote = $this->levels->note($productId);
+        $isUnchanged = $newNote === $oldNote;
+        if ($isUnchanged) return;
+
+        $this->inTransaction(function () use ($productId, $newNote): void {
+            $this->levels->setNote(productId: $productId, note: $newNote);
+            $entry = $newNote === null ? 'Note cleared' : $newNote;
+            $this->record(productId: $productId, change: 0, note: $entry);
+        });
+    }
+
     public function stopTracking(int $productId, ?string $note = null): void
     {
         $this->inTransaction(function () use ($productId, $note): void {
@@ -130,13 +154,6 @@ class StockAdjustment
             $this->levels->stopTracking($productId);
             $this->record(productId: $productId, change: -$before, note: $note ?? 'Stopped tracking');
         });
-    }
-
-    /** A note typed against an unchanged figure still goes in the history, as an entry that moved nothing */
-    private function recordNoteOnly(int $productId, ?string $note): void
-    {
-        $hasNote = $note !== null && $note !== '';
-        if ($hasNote) $this->record(productId: $productId, change: 0, note: $note);
     }
 
     private function record(int $productId, int $change, ?string $note): void

@@ -99,30 +99,6 @@ class StockAdjustmentTest extends DatabaseTestCase
         $this->assertCount(expectedCount: 1, haystack: $this->movementsFor($product));
     }
 
-    public function test_a_note_on_an_unchanged_figure_is_kept_as_a_note_entry(): void
-    {
-        $product = $this->product();
-        $this->adjustment()->set(productId: $product, quantity: 4);
-
-        $this->adjustment()->set(productId: $product, quantity: 4, note: 'Recounted: all correct');
-
-        $movements = $this->movementsFor($product);
-        $this->assertCount(expectedCount: 2, haystack: $movements);
-        $this->assertSame(['change_qty' => 0, 'reason' => 'manual', 'note' => 'Recounted: all correct'], $movements[1]);
-        $this->assertSame(4, $this->levels->get($product));
-    }
-
-    public function test_a_note_on_an_unchanged_figure_does_not_touch_the_status(): void
-    {
-        $product = $this->product();
-        $this->adjustment()->set(productId: $product, quantity: 0);
-        $this->assertSame($this->outOfStock, $this->statusOf($product));
-
-        $this->adjustment()->set(productId: $product, quantity: 0, note: 'Still none');
-
-        $this->assertSame($this->outOfStock, $this->statusOf($product));
-    }
-
     public function test_a_changed_figure_still_records_one_entry_with_the_note(): void
     {
         $product = $this->product();
@@ -548,13 +524,121 @@ class StockAdjustmentTest extends DatabaseTestCase
         $product = $this->product();
         $this->adjustment()->set(productId: $product, quantity: 1);
         foreach (\range(1, 205) as $number) {
-            $this->adjustment()->set(productId: $product, quantity: 1, note: "Note {$number}");
+            $this->adjustment()->set(productId: $product, quantity: 1 + ($number % 2), note: "Note {$number}");
         }
 
         $rows = (new \Osmium\Services\StockControl\Models\StockMovements($this->db))->forProduct($product);
 
         $this->assertCount(expectedCount: 200, haystack: $rows);
         $this->assertSame('Note 205', $rows[0]['note']);
+    }
+
+    // ── the lasting note ────────────────────────────────────────────────────
+
+    private function noteOf(int $productId): ?string
+    {
+        foreach ($this->levels->listProducts() as $row) {
+            $isWanted = (int) $row['id'] === $productId;
+            if ($isWanted) return $row['note'];
+        }
+
+        return null;
+    }
+
+    public function test_a_note_can_be_kept_with_a_tracked_product(): void
+    {
+        $product = $this->trackedProduct();
+
+        $this->adjustment()->setNote(productId: $product, note: 'Supplier: Acme, ring Dave');
+
+        $this->assertSame('Supplier: Acme, ring Dave', $this->noteOf($product));
+    }
+
+    public function test_changing_the_note_is_recorded_in_the_history(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setNote(productId: $product, note: 'Ring Dave');
+        $this->adjustment()->setNote(productId: $product, note: 'Ring Sue');
+        $this->adjustment()->setNote(productId: $product, note: '');
+
+        $notes = \array_column($this->movementsFor($product), 'note');
+        $changes = \array_column($this->movementsFor($product), 'change_qty');
+
+        $this->assertSame(['Ring Dave', 'Ring Sue', 'Note cleared'], \array_slice($notes, -3));
+        $this->assertSame([0, 0, 0], \array_slice($changes, -3));
+    }
+
+    public function test_saving_the_same_note_again_adds_no_history(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setNote(productId: $product, note: 'Ring Dave');
+        $before = \count($this->movementsFor($product));
+        $this->adjustment()->setNote(productId: $product, note: ' Ring Dave ');
+
+        $this->assertCount($before, $this->movementsFor($product));
+    }
+
+    public function test_a_note_is_trimmed_and_a_blank_one_clears_it(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setNote(productId: $product, note: '  Ring Dave  ');
+        $this->assertSame('Ring Dave', $this->noteOf($product));
+
+        $this->adjustment()->setNote(productId: $product, note: '   ');
+
+        $this->assertNull($this->noteOf($product));
+    }
+
+    public function test_a_note_can_be_cleared_with_null(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setNote(productId: $product, note: 'Something');
+
+        $this->adjustment()->setNote(productId: $product, note: null);
+
+        $this->assertNull($this->noteOf($product));
+    }
+
+    public function test_a_note_is_refused_for_an_untracked_product(): void
+    {
+        $product = $this->product();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->adjustment()->setNote(productId: $product, note: 'Hello');
+    }
+
+    public function test_a_note_over_two_hundred_and_fifty_five_characters_is_refused(): void
+    {
+        $product = $this->trackedProduct();
+
+        try {
+            $this->adjustment()->setNote(productId: $product, note: \str_repeat('x', 256));
+            $this->fail('A note this long should be refused');
+        } catch (\InvalidArgumentException) {
+            $this->assertNull($this->noteOf($product));
+        }
+    }
+
+    public function test_a_note_of_exactly_two_hundred_and_fifty_five_characters_is_kept(): void
+    {
+        $product = $this->trackedProduct();
+
+        $this->adjustment()->setNote(productId: $product, note: \str_repeat('x', 255));
+
+        $this->assertSame(255, \strlen((string) $this->noteOf($product)));
+    }
+
+    public function test_the_note_survives_changes_to_the_figure_the_level_and_the_order(): void
+    {
+        $product = $this->trackedProduct();
+        $this->adjustment()->setNote(productId: $product, note: 'Keep me');
+
+        $this->adjustment()->set(productId: $product, quantity: 9);
+        $this->adjustment()->setReorderLevel(productId: $product, level: 4);
+        $this->adjustment()->setOnOrder(productId: $product, quantity: 5, expectedAt: null);
+
+        $this->assertSame('Keep me', $this->noteOf($product));
     }
 
     public function test_stopping_tracking_removes_the_figure_and_records_what_was_left(): void

@@ -98,6 +98,28 @@ class StockLevels extends Model
         )->execute();
     }
 
+    /** The lasting note of a tracked product, or null when it has none (or is not tracked) */
+    public function note(int $productId): ?string
+    {
+        $row = $this->database->prepare(
+            sql: $this->loadSqlFile('stock-level-get-note.sql'),
+            bindings: [':product_id' => $productId],
+        )->single();
+
+        $hasNote = $row !== false && $row['note'] !== null;
+
+        return $hasNote ? (string) $row['note'] : null;
+    }
+
+    /** Keep a lasting note with a tracked product (null clears it). Does nothing for an untracked product. */
+    public function setNote(int $productId, ?string $note): void
+    {
+        $this->database->prepare(
+            sql: $this->loadSqlFile('stock-level-set-note.sql'),
+            bindings: [':product_id' => $productId, ':note' => $note],
+        )->execute();
+    }
+
     /** Stop tracking a product: stock control leaves it alone again */
     public function stopTracking(int $productId): void
     {

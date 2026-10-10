@@ -32,6 +32,7 @@ class StockController extends AdminController
 {
     private const RECORD_TYPE = 'stock_level';
     private const MAX_IMPORT_BYTES = 2097152;
+    private const RECENT_HISTORY = 5;
 
     public function index(): void
     {
@@ -59,6 +60,8 @@ class StockController extends AdminController
         if (!$product) $this->redirect('stock/');
 
         $this->data['admin']['stockProduct'] = $this->formatProduct($product);
+        $recent = \array_slice((new StockMovements($this->osmium->dataSource))->forProduct($id), 0, self::RECENT_HISTORY);
+        $this->data['admin']['stockRecent'] = \array_map(StockHistory::row(...), $recent);
 
         $this->setView('stock/edit.phtml');
     }
@@ -161,7 +164,8 @@ class StockController extends AdminController
         $reorderLevel = $this->readReorderLevel($input['reorder_level'] ?? '');
         [$onOrder, $expectedAt] = $this->readOnOrder(quantity: $input['on_order'] ?? '', date: $input['expected_at'] ?? '');
 
-        $this->adjustment()->set(productId: $productId, quantity: (int) $rawQuantity, note: $note === '' ? null : $note);
+        $this->adjustment()->set(productId: $productId, quantity: (int) $rawQuantity);
+        $this->adjustment()->setNote(productId: $productId, note: $note);
         $this->adjustment()->setReorderLevel(productId: $productId, level: $reorderLevel);
         $this->adjustment()->setOnOrder(productId: $productId, quantity: $onOrder, expectedAt: $expectedAt);
         $this->logChange(action: 'Set stock to ' . (int) $rawQuantity . ' for', productId: $productId);
@@ -266,6 +270,8 @@ class StockController extends AdminController
             'stock_sort' => $isTracked ? (int) $product['quantity'] : -1,
             'is_tracked' => $isTracked,
             'reorder_label' => $reorderLevel === null ? '' : (string) $reorderLevel,
+            'note_value' => (string) ($product['note'] ?? ''),
+            'sub_label' => (string) (($product['note'] ?? '') !== '' ? $product['note'] : ($product['reference'] ?? '')),
             'has_on_order' => $onOrder['state'] !== 'none',
             'on_order_state' => $onOrder['state'],
             'on_order_html' => $this->onOrderHtml($onOrder),

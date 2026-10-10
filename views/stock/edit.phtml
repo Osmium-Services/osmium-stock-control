@@ -46,12 +46,38 @@
             </div>
             <div class="mb-3">
                 <label for="stockNote" class="form-label">Note (optional)</label>
-                <input type="text" class="form-control" id="stockNote" maxlength="255" placeholder="e.g. Delivery from supplier">
+                <input type="text" class="form-control" id="stockNote" maxlength="255" placeholder="e.g. Supplier: Acme, ring Dave"
+                    value="<?= \htmlspecialchars((string) $product['note_value']) ?>">
+                <div class="form-text">Stays with the product and is shown here each time you open it. Stock changes are recorded separately under Recent changes.</div>
             </div>
             <button type="submit" class="btn btn-primary w-100" id="stockSaveButton">Save</button>
         </div>
     </div>
 </form>
+
+<div class="card mb-4" style="max-width: 32rem;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Recent changes</h6>
+        <a href="<?= $adminUrl('stock/history/?id=' . (int) $product['id']) ?>" class="btn btn-sm btn-outline-secondary">Full history</a>
+    </div>
+    <div class="card-body pt-0">
+        <?php if (!$admin['stockRecent']): ?>
+            <p class="text-muted mb-0">No changes recorded yet.</p>
+        <?php endif; ?>
+        <?php foreach ($admin['stockRecent'] as $row): ?>
+            <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                <div>
+                    <span class="fw-semibold <?= \htmlspecialchars($row['changeClass']) ?>"><?= \htmlspecialchars($row['change']) ?></span>
+                    <span class="text-muted small"><?= \htmlspecialchars($row['reason']) ?></span>
+                    <?php if ($row['note'] !== ''): ?>
+                        <div class="small"><?= \htmlspecialchars($row['note']) ?></div>
+                    <?php endif; ?>
+                </div>
+                <small class="text-muted text-nowrap ms-3"><?= \htmlspecialchars($row['when']) ?></small>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</div>
 
 <script nonce="<?= $cspNonce ?? '' ?>">
     window.StockConfig = {
