@@ -159,6 +159,16 @@ class StockLevels extends Model
         return $this->database->prepare(sql: $this->loadSqlFile('stock-level-list-on-order.sql'))->resultset();
     }
 
+    /**
+     * How many live products have a stock figure, and how many of those have none left
+     *
+     * @return array{tracked: int|string, out_of_stock: int|string}
+     */
+    public function totals(): array
+    {
+        return $this->database->prepare(sql: $this->loadSqlFile('stock-level-totals.sql'))->single();
+    }
+
     /** The product's current status id (core's products.status_id), or null if there is no such product */
     public function productStatus(int $productId): ?int
     {
