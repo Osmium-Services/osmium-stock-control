@@ -13,7 +13,7 @@ use Osmium\Services\StockControl\Controllers\StockController;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../../../app/core/Osmium.php';
-require_once __DIR__ . '/../../../../app/modules/admin/core/AdminController.php';
+require_once __DIR__ . '/../../../../app/admin/core/AdminController.php';
 require_once __DIR__ . '/../controllers/StockController.php';
 
 /**
@@ -113,6 +113,6 @@ class StockImportAccessTest extends TestCase
 
         $this->assertNull($result['redirect']);
         $this->assertNull($result['data']['admin']['importResults']);
-        $this->assertSame('app/modules/admin/views/stock/import.phtml', $result['data']['adminContent']);
+        $this->assertSame('app/admin/views/stock/import.phtml', $result['data']['adminContent']);
     }
 }
