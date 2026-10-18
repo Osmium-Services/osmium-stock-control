@@ -36,7 +36,6 @@ class StockController extends AdminController
 
     public function index(): void
     {
-        require_once 'app/admin/core/ListView.php';
 
         $levels = new StockLevels($this->osmium->dataSource);
 
