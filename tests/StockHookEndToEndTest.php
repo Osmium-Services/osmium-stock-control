@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Services\StockControl;
 
 use Osmium\Core\Library\StoreFinance;
+use Osmium\Core\Models\ServiceModel;
 use Osmium\Modules\Checkout\Models\CheckoutBasket;
 use Osmium\Modules\Checkout\Models\CheckoutOrder;
 use Osmium\Modules\Checkout\Services\CheckoutBasketService;
@@ -29,8 +30,8 @@ require_once __DIR__ . '/../models/StockOrderHooks.php';
 
 /**
  * Pays a real order through core's markPaid and checks the shelf: proves the
- * order.paid hook in service.json reaches the stock code. Needs the service
- * installed in the dev database.
+ * order.paid hook in service.json reaches the stock code. Registers the service
+ * itself (rolled back with the test), so it needs nothing installed.
  */
 class StockHookEndToEndTest extends ShopDatabaseTestCase
 {
@@ -43,6 +44,7 @@ class StockHookEndToEndTest extends ShopDatabaseTestCase
     {
         parent::setUp();
 
+        $this->registerService();
         $this->baskets = new CheckoutBasketService(new CheckoutBasket($this->db, 'checkout_baskets'));
         $this->orders = new ShopOrderService(
             orders: new CheckoutOrder($this->db, 'shop_orders'),
@@ -52,6 +54,24 @@ class StockHookEndToEndTest extends ShopDatabaseTestCase
         );
         $this->levels = new StockLevels($this->db);
         $this->movements = new StockMovements($this->db);
+    }
+
+    /** Registers this service from its own folder, so core's hooks find its manifest */
+    private function registerService(): void
+    {
+        $dir = \dirname(__DIR__);
+        $manifest = \json_decode((string) \file_get_contents($dir . '/service.json'), true);
+        (new ServiceModel($this->db))->insert(
+            serviceId: $manifest['id'],
+            name: $manifest['name'],
+            version: $manifest['version'],
+            description: null,
+            authorName: null,
+            githubRepo: null,
+            path: $dir,
+            config: null,
+            installedBy: null,
+        );
     }
 
     private function kitWithBatteryOption(int $batteryId): array
