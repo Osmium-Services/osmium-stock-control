@@ -8,7 +8,7 @@ use Osmium\Services\StockControl\Models\StockAdjustment;
 use Osmium\Services\StockControl\Models\StockCalculator;
 use Osmium\Services\StockControl\Models\StockLevels;
 use Osmium\Services\StockControl\Models\StockMovements;
-use Tests\Integration\DatabaseTestCase;
+use Tests\Helpers\ShopDatabaseTestCase;
 
 require_once __DIR__ . '/../models/StockCalculator.php';
 require_once __DIR__ . '/../models/StockLevels.php';
@@ -20,7 +20,7 @@ require_once __DIR__ . '/../models/StockAdjustment.php';
  * What an admin does from the stock list: start tracking a product, change its
  * figure, or stop tracking it. Every change leaves a manual audit row.
  */
-class StockAdjustmentTest extends DatabaseTestCase
+class StockAdjustmentTest extends ShopDatabaseTestCase
 {
     private StockLevels $levels;
     private int $inStock;

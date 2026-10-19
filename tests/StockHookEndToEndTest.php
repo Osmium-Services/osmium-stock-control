@@ -14,7 +14,7 @@ use Osmium\Modules\Checkout\Services\ShopTotalsService;
 use Osmium\Services\StockControl\Models\StockLevels;
 use Osmium\Services\StockControl\Models\StockOrderHooks;
 use Osmium\Services\StockControl\Models\StockMovements;
-use Tests\Integration\DatabaseTestCase;
+use Tests\Helpers\ShopDatabaseTestCase;
 
 require_once __DIR__ . '/../models/StockCalculator.php';
 require_once __DIR__ . '/../models/StockLevels.php';
@@ -32,7 +32,7 @@ require_once __DIR__ . '/../models/StockOrderHooks.php';
  * order.paid hook in service.json reaches the stock code. Needs the service
  * installed in the dev database.
  */
-class StockHookEndToEndTest extends DatabaseTestCase
+class StockHookEndToEndTest extends ShopDatabaseTestCase
 {
     private CheckoutBasketService $baskets;
     private ShopOrderService $orders;

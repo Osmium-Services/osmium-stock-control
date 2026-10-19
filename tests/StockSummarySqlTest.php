@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Services\StockControl;
 
 use Osmium\Services\StockControl\Models\StockLevels;
-use Tests\Integration\DatabaseTestCase;
+use Tests\Helpers\ShopDatabaseTestCase;
 
 require_once __DIR__ . '/../models/StockLevels.php';
 
@@ -13,7 +13,7 @@ require_once __DIR__ . '/../models/StockLevels.php';
  * The SQL behind stock_summary, run against real rows: what counts as tracked and out of stock, and which
  * products the reorder and on-order lists include.
  */
-class StockSummarySqlTest extends DatabaseTestCase
+class StockSummarySqlTest extends ShopDatabaseTestCase
 {
     private StockLevels $levels;
 

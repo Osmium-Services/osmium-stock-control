@@ -9,7 +9,7 @@ use Osmium\Services\StockControl\Models\StockDeduction;
 use Osmium\Services\StockControl\Models\StockLevels;
 use Osmium\Services\StockControl\Models\StockMovements;
 use Osmium\Services\StockControl\Models\StockReturn;
-use Tests\Integration\DatabaseTestCase;
+use Tests\Helpers\ShopDatabaseTestCase;
 
 require_once __DIR__ . '/../models/StockCalculator.php';
 require_once __DIR__ . '/../models/StockLevels.php';
@@ -22,7 +22,7 @@ require_once __DIR__ . '/../models/StockReturn.php';
  * Putting a refunded order's items back on the shelf: only what the sale really
  * took, only once, and only for products that are still tracked.
  */
-class StockReturnTest extends DatabaseTestCase
+class StockReturnTest extends ShopDatabaseTestCase
 {
     private StockLevels $levels;
     private StockMovements $movements;

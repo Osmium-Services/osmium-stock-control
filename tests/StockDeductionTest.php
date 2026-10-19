@@ -8,7 +8,7 @@ use Osmium\Services\StockControl\Models\StockCalculator;
 use Osmium\Services\StockControl\Models\StockDeduction;
 use Osmium\Services\StockControl\Models\StockLevels;
 use Osmium\Services\StockControl\Models\StockMovements;
-use Tests\Integration\DatabaseTestCase;
+use Tests\Helpers\ShopDatabaseTestCase;
 
 require_once __DIR__ . '/../models/StockCalculator.php';
 require_once __DIR__ . '/../models/StockLevels.php';
@@ -20,7 +20,7 @@ require_once __DIR__ . '/../models/StockDeduction.php';
  * What paying an order does to the shelf: per-product deductions from the order's
  * lines and kit parts, an audit row for each, and the status flip at zero.
  */
-class StockDeductionTest extends DatabaseTestCase
+class StockDeductionTest extends ShopDatabaseTestCase
 {
     private StockLevels $levels;
     private StockMovements $movements;
