@@ -95,8 +95,15 @@ class StockController extends AdminController
 
         $movements = (new StockMovements($this->osmium->dataSource))->forProduct($id);
 
+        $this->data['admin']['isAdmin'] = $this->isAdmin();
         $this->data['admin']['stockProduct'] = $this->formatProduct($product);
         $this->data['admin']['stockHistory'] = \array_map(StockHistory::row(...), $movements);
+
+        $lists = require __DIR__ . '/../lists/stock-history.php';
+        $shown = $this->data['admin']['stockProduct'];
+        $lists['history']['title'] = $shown['name'];
+        $lists['history']['subtitle'] = ($shown['is_tracked'] ? (int) $shown['quantity'] . ' in stock now' : 'Not tracked') . '. Latest 200 changes, newest first.';
+        $this->data['admin']['lists'] = $lists;
 
         $this->setView('stock/history.phtml');
     }
