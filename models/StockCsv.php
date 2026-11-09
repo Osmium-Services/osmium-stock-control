@@ -28,7 +28,7 @@ class StockCsv
             $expected = (string) ($product['expected_at'] ?? '');
             \fputcsv(
                 stream: $stream,
-                fields: [(int) $product['id'], $product['brand_name'], $product['model_name'], $product['reference'], $product['status_label'], $quantity, $reorder, $onOrder, $expected],
+                fields: [(int) $product['id'], self::cell($product['brand_name']), self::cell($product['model_name']), self::cell($product['reference']), self::cell($product['status_label']), $quantity, $reorder, $onOrder, $expected],
                 escape: '\\',
             );
         }
@@ -36,6 +36,15 @@ class StockCsv
         \rewind($stream);
 
         return self::BOM . (string) \stream_get_contents($stream);
+    }
+
+    /** A text cell starting with = + - @ would run as a formula when the file is opened in a spreadsheet. */
+    private static function cell(mixed $value): string
+    {
+        $text = (string) $value;
+        $formulaLike = $text !== '' && \strpbrk($text[0], "=+-@\t\r") !== false;
+
+        return $formulaLike ? "'" . $text : $text;
     }
 
     /**
