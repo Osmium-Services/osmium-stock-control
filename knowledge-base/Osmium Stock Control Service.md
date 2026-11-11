@@ -1,7 +1,7 @@
 # Osmium Stock Control service
 
 Counts stock down when an order is paid, stops customers adding more than is in stock, and treats a kit's parts as stock of
-their own. Repo `Osmium-Services/osmium-stock-control`, v0.8.2<!--v:osmium-stock-control-->, category shop. Built 2026-10-10 on a thin core change
+their own. Repo `Osmium-Services/osmium-stock-control`, v0.8.4<!--v:osmium-stock-control-->, category shop. Built 2026-10-10 on a thin core change
 shipped first. See [[Shop and Checkout]] and [[Hooks Reference]].
 
 ## Core changes it relies on
