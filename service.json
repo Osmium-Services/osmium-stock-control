@@ -1,7 +1,7 @@
 {
     "id": "osmium-stock-control",
     "name": "Osmium Stock Control",
-    "version": "0.8.4",
+    "version": "0.9.0",
     "description": "Counts stock down when an order is paid, stops customers adding more than is in stock, and treats a kit's parts as stock of their own",
     "category": "shop",
     "author": {
@@ -50,7 +50,9 @@
                     "label": "Stock",
                     "icon": "bx bx-package",
                     "color": "#17a2b8",
-                    "placement": "top",
+                    "placement": "group",
+                    "group": "shop",
+                    "order": 90,
                     "route": "admin/stock",
                     "activePattern": "admin/stock*",
                     "role": null
