@@ -17,6 +17,11 @@ $listContext = [
     </h4>
     <div class="d-flex gap-2">
         <?php if ($admin['isAdmin'] ?? false) { ?>
+        <a href="<?= $admin['basePath'] ?>settings/stock-control/" class="btn btn-outline-secondary">
+            <i class="bx bx-cog me-1"></i> Settings
+        </a>
+        <?php } ?>
+        <?php if ($admin['isAdmin'] ?? false) { ?>
         <a href="<?= $adminUrl('stock/import/') ?>" class="btn btn-outline-secondary">
             <i class="bx bx-import me-1"></i> Import CSV
         </a>
