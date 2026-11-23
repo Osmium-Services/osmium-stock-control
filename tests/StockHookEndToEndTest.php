@@ -17,6 +17,7 @@ use Osmium\Services\StockControl\Models\StockOrderHooks;
 use Osmium\Services\StockControl\Models\StockMovements;
 use Tests\Helpers\ShopDatabaseTestCase;
 
+require_once __DIR__ . '/../../osmium-shop/tests/bootstrap.php'; // The checkout classes this test builds orders with
 require_once __DIR__ . '/../models/StockCalculator.php';
 require_once __DIR__ . '/../models/StockLevels.php';
 require_once __DIR__ . '/../models/StockMovements.php';
@@ -61,6 +62,9 @@ class StockHookEndToEndTest extends ShopDatabaseTestCase
     {
         $dir = \dirname(__DIR__);
         $manifest = \json_decode((string) \file_get_contents($dir . '/service.json'), true);
+        $alreadyInstalled = (new ServiceModel($this->db))->findByServiceId($manifest['id']) !== null;
+        if ($alreadyInstalled) return; // Installed on this dev site, so core's hooks already find it
+
         (new ServiceModel($this->db))->insert(
             serviceId: $manifest['id'],
             name: $manifest['name'],
