@@ -1,6 +1,7 @@
 ---
 title: Track and update your stock levels
 tags: stock, inventory, reorder, on order, receive stock, out of stock, history, kit
+page: admin/stock, admin/stock/edit*, admin/stock/history, admin/settings/stock-control
 ---
 
 **Stock Control** counts stock down when an order is paid, and stops customers adding more than is in stock.

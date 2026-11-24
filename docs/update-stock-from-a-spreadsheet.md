@@ -1,6 +1,7 @@
 ---
 title: Update stock from a spreadsheet
 tags: stock, csv, import, export, excel, google sheets, bulk
+page: admin/stock/import
 ---
 
 You can update many products at once with a CSV file.
